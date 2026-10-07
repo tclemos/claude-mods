@@ -1,14 +1,21 @@
+import { atom, read, update } from 'claude-code'
+
 // Tracks each MCP server's state and the prompt it was last touched in, so
 // the band can show a live working/done/error state for the current prompt
 // and fall back to a dim idle state for servers used in earlier prompts.
 let promptIndex = 0
 let currentModel = null
 let currentEffort = null
-let totalInputTokens = 0
-let totalOutputTokens = 0
-let promptInputTokens = 0
-let promptOutputTokens = 0
 const mcpState = new Map() // server name -> { promptIndex, status: 'working' | 'done' | 'error' }
+
+// Token counters live in $.state, not module-level variables: a module
+// reload (every save during development, or a plugin re-registration in
+// production) re-initializes module variables but $.state survives it,
+// resetting only on /clear.
+const totalInputTokensAtom = atom({ plugin: 'smart-hud', key: 'totalInputTokens' }, 0)
+const totalOutputTokensAtom = atom({ plugin: 'smart-hud', key: 'totalOutputTokens' }, 0)
+const promptInputTokensAtom = atom({ plugin: 'smart-hud', key: 'promptInputTokens' }, 0)
+const promptOutputTokensAtom = atom({ plugin: 'smart-hud', key: 'promptOutputTokens' }, 0)
 
 function formatTokens(n) {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M'
@@ -55,9 +62,8 @@ export function register(on) {
 
   on('prompt.submit', async ($, e, next) => {
     promptIndex += 1
-    promptInputTokens = 0
-    promptOutputTokens = 0
-    $.ui.invalidate('ui.render')
+    await update($, promptInputTokensAtom, () => 0)
+    await update($, promptOutputTokensAtom, () => 0)
     return next(e)
   })
 
@@ -69,11 +75,10 @@ export function register(on) {
     if (result?.usage) {
       const u = result.usage
       const input = u.input_tokens + u.cache_read_input_tokens + u.cache_creation_input_tokens
-      totalInputTokens += input
-      totalOutputTokens += u.output_tokens
-      promptInputTokens += input
-      promptOutputTokens += u.output_tokens
-      $.ui.invalidate('ui.render')
+      await update($, totalInputTokensAtom, (v) => v + input)
+      await update($, totalOutputTokensAtom, (v) => v + u.output_tokens)
+      await update($, promptInputTokensAtom, (v) => v + input)
+      await update($, promptOutputTokensAtom, (v) => v + u.output_tokens)
     }
     return result
   })
@@ -104,6 +109,10 @@ export function register(on) {
       home && cwd === home ? '~' : home && cwd.startsWith(home + '/') ? '~' + cwd.slice(home.length) : cwd || '?'
     const model = currentModel ?? (await $.session.model()) ?? '?'
     const usage = await $.session.usage()
+    const totalInputTokens = await read($, totalInputTokensAtom)
+    const totalOutputTokens = await read($, totalOutputTokensAtom)
+    const promptInputTokens = await read($, promptInputTokensAtom)
+    const promptOutputTokens = await read($, promptOutputTokensAtom)
 
     // The MCP row is always present, even with no servers called yet, so the
     // band's height never changes and the rest of the content doesn't jump.
