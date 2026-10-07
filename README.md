@@ -20,4 +20,9 @@ Após clonar em outra máquina, ajuste o caminho para o local correto.
 
 ### smart-hud
 
-Faixa acima do prompt com diretório atual, modelo, effort level e atividade de MCPs na sessão (destaque para os usados no último prompt).
+Faixa acima do prompt com:
+
+- Diretório atual (`~/...`)
+- MCPs e skills usados na sessão, com estado ao vivo: 🔄 chamando, ✅ concluído, ⚠️ erro (neste prompt), 💤 ocioso (usado em prompt anterior)
+- Modelo, effort level (atualizado em tempo real, sem esperar o próximo prompt) e custo acumulado da sessão
+- Barra de uso do context window, com gradiente de cor (verde → amarelo → laranja → vermelho) e tokens usados/limite

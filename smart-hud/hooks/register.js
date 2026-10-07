@@ -1,18 +1,12 @@
-// Tracks each MCP server's state and the prompt it was last touched in, so
-// the band can show a live working/done/error state for the current prompt
-// and fall back to a dim idle state for servers used in earlier prompts.
+// Tracks each MCP server's and skill's state and the prompt it was last
+// touched in, so the band can show a live working/done/error state for the
+// current prompt and fall back to a dim idle state for ones used earlier.
 let promptIndex = 0
-let currentModel = null
 let currentEffort = null
 const mcpState = new Map() // server name -> { promptIndex, status: 'working' | 'done' | 'error' }
+const skillState = new Map() // skill name -> { promptIndex, status: 'working' | 'done' | 'error' }
 
-function formatTokens(n) {
-  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M'
-  if (n >= 1_000) return (n / 1_000).toFixed(1) + 'k'
-  return String(n)
-}
-
-const MCP_STATUS = {
+const ACTIVITY_STATUS = {
   working: { icon: '🔄', color: 'success' },
   done: { icon: '✅', color: 'success' },
   error: { icon: '⚠️', color: 'error' },
@@ -22,6 +16,34 @@ const MCP_STATUS = {
 function mcpServerFromTool(toolName) {
   if (!toolName || !toolName.startsWith('mcp__')) return null
   return toolName.split('__')[1] || null
+}
+
+function activityKey(toolName, input) {
+  const server = mcpServerFromTool(toolName)
+  if (server) return { map: mcpState, name: server }
+  if (toolName === 'Skill' && input?.skill) return { map: skillState, name: input.skill }
+  return null
+}
+
+function buildChips(Text, state, prompt) {
+  const entries = [...state.entries()].sort((a, b) => a[0].localeCompare(b[0]))
+  return entries.flatMap(([name, s], i) => {
+    const { icon, color } = s.promptIndex === prompt ? ACTIVITY_STATUS[s.status] : ACTIVITY_STATUS.idle
+    const chip = Text({
+      key: name,
+      children: [icon + ' ' + name],
+      color,
+      bold: color === 'success',
+      dimColor: color === 'inactive',
+    })
+    return i === 0 ? [chip] : [Text({ key: name + '-sep', children: [', '], color: 'inactive' }), chip]
+  })
+}
+
+function formatTokens(n) {
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M'
+  if (n >= 1_000) return (n / 1_000).toFixed(1) + 'k'
+  return String(n)
 }
 
 const CTX_BAR_WIDTH = 20
@@ -38,58 +60,27 @@ function ctxColor(percent) {
   return 'success'
 }
 
-// Visual-testing aid, opt-in only: set SMART_HUD_DEMO=1 (plus any of the
-// SMART_HUD_DEMO_* overrides below) before starting a session to preview
-// extreme values without generating them for real. No effect when unset.
-const DEMO_SERVER_NAMES = [
-  'atlassian',
-  'glean_default',
-  'plugin_slack_slack',
-  'github',
-  'linear',
-  'notion',
-  'figma',
-  'sentry',
-  'datadog',
-  'postgres',
-  'redis',
-  'stripe',
-  'zendesk',
-  'confluence',
-  'pagerduty',
-]
-
-async function loadDemoOverrides($) {
-  if ((await $.env.get('SMART_HUD_DEMO')) !== '1') return null
-
-  const mcpCount = Number((await $.env.get('SMART_HUD_DEMO_MCP_COUNT')) ?? '0')
-  if (mcpCount > 0) {
-    const statuses = ['working', 'done', 'error', 'idle']
-    for (let i = 0; i < mcpCount; i++) {
-      const name = DEMO_SERVER_NAMES[i % DEMO_SERVER_NAMES.length] + (i >= DEMO_SERVER_NAMES.length ? '_' + i : '')
-      const status = statuses[i % statuses.length]
-      mcpState.set(name, { promptIndex: status === 'idle' ? -1 : promptIndex, status })
-    }
-  }
-
-  return {
-    dir: await $.env.get('SMART_HUD_DEMO_DIR'),
-    ctxPercent: (await $.env.get('SMART_HUD_DEMO_CTX_PERCENT')) ?? null,
+// /effort has no live getter on $.session, unlike $.session.model(). Read it
+// from the same /config row the menu and /effort itself use, so a change
+// shows up immediately instead of waiting for the next turn.step.
+async function liveEffort($, fallback) {
+  try {
+    const rows = await $.config.list()
+    const row = rows.find((r) => r.key === 'effort' || r.key.endsWith('.effortLevel'))
+    return row?.value ?? fallback
+  } catch {
+    return fallback
   }
 }
 
 export function register(on) {
-  let demo = null
-
   on('session.start', async ($, e, next) => {
     try {
       const settings = await $.settings.read()
       currentEffort = settings?.effortLevel ?? currentEffort
     } catch {
-      // no-op: fall back to whatever turn.step reports later
+      // no-op: liveEffort() covers this once the first render runs
     }
-    demo = await loadDemoOverrides($)
-    if (demo) $.ui.invalidate('ui.render')
     return next(e)
   })
 
@@ -99,26 +90,26 @@ export function register(on) {
   })
 
   on('turn.step', async function* ($, e, next) {
-    currentModel = e.model ?? currentModel
+    // Fallback for liveEffort() when a model has no /config effort row.
     currentEffort = e.effort ?? currentEffort
     $.ui.invalidate('ui.render')
     yield* next(e)
   })
 
   on('tool.call', async ($, e, next) => {
-    const server = mcpServerFromTool(e.tool)
-    if (!server) return next(e)
+    const activity = activityKey(e.tool, e.input)
+    if (!activity) return next(e)
 
-    mcpState.set(server, { promptIndex, status: 'working' })
+    activity.map.set(activity.name, { promptIndex, status: 'working' })
     $.ui.invalidate('ui.render')
 
     const result = await next(e)
-    mcpState.set(server, { promptIndex, status: result?.isError ? 'error' : 'done' })
+    activity.map.set(activity.name, { promptIndex, status: result?.isError ? 'error' : 'done' })
     $.ui.invalidate('ui.render')
     return result
   }).catch(async ($, e) => {
-    const server = mcpServerFromTool(e.tool)
-    if (server) mcpState.set(server, { promptIndex, status: 'error' })
+    const activity = activityKey(e.tool, e.input)
+    if (activity) activity.map.set(activity.name, { promptIndex, status: 'error' })
     $.ui.invalidate('ui.render')
   })
 
@@ -128,55 +119,38 @@ export function register(on) {
     const cwd = (await $.session.cwd()) ?? ''
     const home = await $.env.get('HOME')
     const dir =
-      demo?.dir ||
-      (home && cwd === home ? '~' : home && cwd.startsWith(home + '/') ? '~' + cwd.slice(home.length) : cwd || '?')
-    const model = currentModel ?? (await $.session.model()) ?? '?'
+      home && cwd === home ? '~' : home && cwd.startsWith(home + '/') ? '~' + cwd.slice(home.length) : cwd || '?'
+    const model = (await $.session.model()) ?? '?'
+    const effort = await liveEffort($, currentEffort)
     const usage = await $.session.usage()
-    if (demo?.ctxPercent !== null && demo?.ctxPercent !== undefined) {
-      const p = Number(demo.ctxPercent)
-      usage.context.percent = p
-      usage.context.window = usage.context.window || 200_000
-      usage.context.tokens = Math.round((usage.context.window * p) / 100)
-    }
-
-    // The MCP row is always present, even with no servers called yet, so the
-    // band's height never changes and the rest of the content doesn't jump.
-    // A server keeps its working/done/error state only for the prompt it
-    // happened in; once a newer prompt starts, it falls back to idle.
-    const mcpEntries = [...mcpState.entries()].sort((a, b) => a[0].localeCompare(b[0]))
-    const mcpChips = mcpEntries.flatMap(([name, state], i) => {
-      const { icon, color } = state.promptIndex === promptIndex ? MCP_STATUS[state.status] : MCP_STATUS.idle
-      const chip = Text({
-        key: 'mcp-' + name,
-        children: [icon + ' ' + name],
-        color,
-        bold: color === 'success',
-        dimColor: color === 'inactive',
-      })
-      return i === 0 ? [chip] : [Text({ key: 'mcp-sep-' + name, children: [', '], color: 'inactive' }), chip]
-    })
 
     const percent = usage.context.percent
     const cost = usage.cost?.usd
     const bar = percent === undefined ? null : progressBar(percent, CTX_BAR_WIDTH)
     const barColor = percent === undefined ? 'subtle' : ctxColor(percent)
 
+    // Each activity row (MCPs, Skills) is always present, even with nothing
+    // called yet, so the band's height never changes and the rest of the
+    // content doesn't jump when the first one happens.
+    const activityRow = (label, state) =>
+      Box({
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        columnGap: 1,
+        children: [
+          Text({ children: [label], color: 'text' }),
+          ...(state.size > 0
+            ? buildChips(Text, state, promptIndex)
+            : [Text({ children: ['None'], color: 'inactive', dimColor: true })]),
+        ],
+      })
+
     const leftColumn = Box({
       flexDirection: 'column',
       flexGrow: 1,
       flexShrink: 1,
       minWidth: 0,
-      children: [
-        Box({
-          flexDirection: 'row',
-          flexWrap: 'wrap',
-          columnGap: 1,
-          children: [
-            Text({ children: ['MCPs:'], color: 'text' }),
-            ...(mcpChips.length > 0 ? mcpChips : [Text({ children: ['None'], color: 'inactive', dimColor: true })]),
-          ],
-        }),
-      ],
+      children: [activityRow('MCPs:', mcpState), activityRow('Skills:', skillState)],
     })
 
     const rightColumn = Box({
@@ -189,7 +163,7 @@ export function register(on) {
           children: [
             Text({ children: ['🧠 ' + model], color: 'claude' }),
             Text({ children: [' · '], color: 'inactive' }),
-            Text({ children: [currentEffort ?? '?'], color: 'text' }),
+            Text({ children: [effort ?? '?'], color: 'text' }),
             Text({ children: [' · '], color: 'inactive' }),
             Text({ children: ['💰 $' + (cost ?? 0).toFixed(2)], color: 'warning' }),
           ],
