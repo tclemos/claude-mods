@@ -124,10 +124,14 @@ export function register(on) {
     const effort = await liveEffort($, currentEffort)
     const usage = await $.session.usage()
 
-    const percent = usage.context.percent
+    // Before the first turn, usage.context.percent isn't reported yet. Show
+    // an empty bar at 0% instead of "?", colored gray to signal "no data
+    // yet" rather than green ("0% used", which would be a false positive).
+    const hasContextUsage = usage.context.percent !== undefined
+    const percent = usage.context.percent ?? 0
     const cost = usage.cost?.usd
-    const bar = percent === undefined ? null : progressBar(percent, CTX_BAR_WIDTH)
-    const barColor = percent === undefined ? 'subtle' : ctxColor(percent)
+    const bar = progressBar(percent, CTX_BAR_WIDTH)
+    const barColor = hasContextUsage ? ctxColor(percent) : 'inactive'
 
     // Each activity row (MCPs, Skills) is always present, even with nothing
     // called yet, so the band's height never changes and the rest of the
@@ -171,9 +175,9 @@ export function register(on) {
         Box({
           flexDirection: 'row',
           children: [
-            Text({ children: [(percent ?? '?') + '% '], color: barColor }),
-            bar ? Text({ children: [bar.filled], color: barColor }) : Text({ children: ['?'], color: 'subtle' }),
-            bar ? Text({ children: [bar.empty], color: 'inactive', dimColor: true }) : null,
+            Text({ children: [percent + '% '], color: barColor }),
+            Text({ children: [bar.filled], color: barColor }),
+            Text({ children: [bar.empty], color: 'inactive', dimColor: true }),
             usage.context.window
               ? Text({
                   children: [' (' + formatTokens(usage.context.tokens ?? 0) + '/' + formatTokens(usage.context.window) + ')'],
