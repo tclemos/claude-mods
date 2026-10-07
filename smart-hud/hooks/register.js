@@ -4,6 +4,7 @@
 let promptIndex = 0
 let currentModel = null
 let currentEffort = null
+let totalToolCalls = 0
 const mcpLastPrompt = new Map() // server name -> promptIndex it was last called in
 
 function mcpServerFromTool(toolName) {
@@ -36,11 +37,12 @@ export function register(on) {
   })
 
   on('tool.call', async ($, e, next) => {
+    totalToolCalls += 1
     const server = mcpServerFromTool(e.tool)
     if (server) {
       mcpLastPrompt.set(server, promptIndex)
-      $.ui.invalidate('ui.render')
     }
+    $.ui.invalidate('ui.render')
     return next(e)
   })
 
@@ -52,6 +54,7 @@ export function register(on) {
     const dir =
       home && cwd === home ? '~' : home && cwd.startsWith(home + '/') ? '~' + cwd.slice(home.length) : cwd || '?'
     const model = currentModel ?? (await $.session.model()) ?? '?'
+    const usage = await $.session.usage()
 
     const sep = (key) => Text({ key, children: [' │ '], color: 'inactive' })
 
@@ -70,6 +73,10 @@ export function register(on) {
       return i === 0 ? [chip] : [sep('mcp-sep-' + name), chip]
     })
 
+    const percent = usage.context.percent
+    const percentColor = percent >= 90 ? 'error' : percent >= 70 ? 'warning' : 'subtle'
+    const cost = usage.cost?.usd
+
     return Box({
       flexDirection: 'column',
       borderStyle: 'round',
@@ -84,6 +91,16 @@ export function register(on) {
             Text({ children: ['🧠 ' + model], color: 'claude' }),
             sep('sep-2'),
             Text({ children: ['⚡ ' + (currentEffort ?? '?')], color: 'subtle' }),
+          ],
+        }),
+        Box({
+          flexDirection: 'row',
+          children: [
+            Text({ children: ['🧩 ' + totalToolCalls + ' calls'], color: 'text' }),
+            sep('sep-3'),
+            Text({ children: ['📊 ' + (percent ?? '?') + '% ctx'], color: percentColor }),
+            sep('sep-4'),
+            Text({ children: ['💰 $' + (cost ?? 0).toFixed(2)], color: 'subtle' }),
           ],
         }),
         Box({
