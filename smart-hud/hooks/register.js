@@ -144,32 +144,6 @@ export function register(on) {
       flexDirection: 'column',
       flexGrow: 1,
       children: [
-        Text({ children: ['📁 ' + dir], color: 'text' }),
-        Box({
-          flexDirection: 'row',
-          children: [
-            Text({ children: ['🧠 ' + model], color: 'claude' }),
-            Text({ children: [' · '], color: 'inactive' }),
-            Text({ children: [currentEffort ?? '?'], color: 'text' }),
-            Text({ children: [' · '], color: 'inactive' }),
-            Text({ children: ['💰 $' + (cost ?? 0).toFixed(2)], color: 'warning' }),
-          ],
-        }),
-        Box({
-          flexDirection: 'row',
-          children: [
-            bar ? Text({ children: [bar.filled], color: barColor }) : Text({ children: ['?'], color: 'subtle' }),
-            bar ? Text({ children: [bar.empty], color: 'inactive', dimColor: true }) : null,
-            Text({ children: [' ' + (percent ?? '?') + '%'], color: barColor }),
-          ].filter(Boolean),
-        }),
-      ],
-    })
-
-    const rightColumn = Box({
-      flexDirection: 'column',
-      alignItems: 'flex-end',
-      children: [
         Box({
           flexDirection: 'row',
           children: [
@@ -189,12 +163,37 @@ export function register(on) {
         Box({
           flexDirection: 'row',
           flexWrap: 'wrap',
-          justifyContent: 'flex-end',
           columnGap: 1,
           children: [
             Text({ children: ['MCPs in use:'], color: 'text' }),
             ...(mcpChips.length > 0 ? mcpChips : [Text({ children: ['None'], color: 'inactive', dimColor: true })]),
           ],
+        }),
+      ],
+    })
+
+    const rightColumn = Box({
+      flexDirection: 'column',
+      alignItems: 'flex-end',
+      children: [
+        Text({ children: ['📁 ' + dir], color: 'text' }),
+        Box({
+          flexDirection: 'row',
+          children: [
+            Text({ children: ['🧠 ' + model], color: 'claude' }),
+            Text({ children: [' · '], color: 'inactive' }),
+            Text({ children: [currentEffort ?? '?'], color: 'text' }),
+            Text({ children: [' · '], color: 'inactive' }),
+            Text({ children: ['💰 $' + (cost ?? 0).toFixed(2)], color: 'warning' }),
+          ],
+        }),
+        Box({
+          flexDirection: 'row',
+          children: [
+            bar ? Text({ children: [bar.filled], color: barColor }) : Text({ children: ['?'], color: 'subtle' }),
+            bar ? Text({ children: [bar.empty], color: 'inactive', dimColor: true }) : null,
+            Text({ children: [' ' + (percent ?? '?') + '%'], color: barColor }),
+          ].filter(Boolean),
         }),
       ],
     })
