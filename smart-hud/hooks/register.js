@@ -6,6 +6,8 @@ let currentModel = null
 let currentEffort = null
 let totalInputTokens = 0
 let totalOutputTokens = 0
+let promptInputTokens = 0
+let promptOutputTokens = 0
 const mcpState = new Map() // server name -> { promptIndex, status: 'working' | 'done' | 'error' }
 
 function formatTokens(n) {
@@ -53,6 +55,8 @@ export function register(on) {
 
   on('prompt.submit', async ($, e, next) => {
     promptIndex += 1
+    promptInputTokens = 0
+    promptOutputTokens = 0
     $.ui.invalidate('ui.render')
     return next(e)
   })
@@ -64,8 +68,11 @@ export function register(on) {
     const result = yield* next(e)
     if (result?.usage) {
       const u = result.usage
-      totalInputTokens += u.input_tokens + u.cache_read_input_tokens + u.cache_creation_input_tokens
+      const input = u.input_tokens + u.cache_read_input_tokens + u.cache_creation_input_tokens
+      totalInputTokens += input
       totalOutputTokens += u.output_tokens
+      promptInputTokens += input
+      promptOutputTokens += u.output_tokens
       $.ui.invalidate('ui.render')
     }
     return result
@@ -144,7 +151,7 @@ export function register(on) {
         Box({
           flexDirection: 'row',
           children: [
-            Text({ children: ['Tokens: '], color: 'text' }),
+            Text({ children: ['Session tokens: '], color: 'text' }),
             Text({ children: ['Input ' + formatTokens(totalInputTokens)], color: 'text' }),
             Text({ children: ['  '] }),
             Text({ children: ['Output ' + formatTokens(totalOutputTokens)], color: 'text' }),
@@ -153,6 +160,17 @@ export function register(on) {
             Text({ children: ['  ('], color: 'inactive' }),
             Text({ children: ['💰 $' + (cost ?? 0).toFixed(2)], color: 'subtle' }),
             Text({ children: [')'], color: 'inactive' }),
+          ],
+        }),
+        Box({
+          flexDirection: 'row',
+          children: [
+            Text({ children: ['Last prompt: '], color: 'text' }),
+            Text({ children: ['Input ' + formatTokens(promptInputTokens)], color: 'text' }),
+            Text({ children: ['  '] }),
+            Text({ children: ['Output ' + formatTokens(promptOutputTokens)], color: 'text' }),
+            Text({ children: ['  '] }),
+            Text({ children: ['Total ' + formatTokens(promptInputTokens + promptOutputTokens)], color: 'text' }),
           ],
         }),
         Box({
