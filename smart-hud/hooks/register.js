@@ -182,7 +182,6 @@ export function register(on) {
         Box({
           flexDirection: 'row',
           children: [
-            Text({ children: ['Model: '], color: 'text' }),
             Text({ children: ['🧠 ' + model], color: 'claude' }),
             Text({ children: [' · '], color: 'inactive' }),
             Text({ children: [currentEffort ?? '?'], color: 'text' }),
@@ -193,7 +192,6 @@ export function register(on) {
         Box({
           flexDirection: 'row',
           children: [
-            Text({ children: ['Context: '], color: 'text' }),
             bar ? Text({ children: [bar.filled], color: barColor }) : Text({ children: ['?'], color: 'subtle' }),
             bar ? Text({ children: [bar.empty], color: 'inactive', dimColor: true }) : null,
             Text({ children: [' ' + (percent ?? '?') + '%'], color: barColor }),
