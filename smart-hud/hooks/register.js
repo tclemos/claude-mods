@@ -4,7 +4,6 @@
 let promptIndex = 0
 let currentModel = null
 let currentEffort = null
-let totalToolCalls = 0
 const mcpState = new Map() // server name -> { promptIndex, status: 'working' | 'done' | 'error' }
 
 const MCP_STATUS = {
@@ -58,7 +57,6 @@ export function register(on) {
   })
 
   on('tool.call', async ($, e, next) => {
-    totalToolCalls += 1
     const server = mcpServerFromTool(e.tool)
     if (!server) return next(e)
 
@@ -119,15 +117,20 @@ export function register(on) {
           justifyContent: 'space-between',
           children: [
             Text({ children: ['📁 ' + dir], color: 'text' }),
-            Text({ children: ['🧠 ' + model], color: 'claude' }),
-            Text({ children: ['⚡ ' + (currentEffort ?? '?')], color: 'text' }),
+            Box({
+              flexDirection: 'row',
+              children: [
+                Text({ children: ['🧠 ' + model], color: 'claude' }),
+                Text({ children: [' · '], color: 'inactive' }),
+                Text({ children: [currentEffort ?? '?'], color: 'text' }),
+              ],
+            }),
           ],
         }),
         Box({
           flexDirection: 'row',
           justifyContent: 'space-between',
           children: [
-            Text({ children: ['🔧 ' + totalToolCalls + ' calls'], color: 'text' }),
             Box({
               flexDirection: 'row',
               children: [
