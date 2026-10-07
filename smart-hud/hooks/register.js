@@ -157,9 +157,6 @@ export function register(on) {
             Text({ children: ['Output ' + formatTokens(totalOutputTokens)], color: 'text' }),
             Text({ children: ['  '] }),
             Text({ children: ['Total ' + formatTokens(totalInputTokens + totalOutputTokens)], color: 'text' }),
-            Text({ children: ['  ('], color: 'inactive' }),
-            Text({ children: ['💰 $' + (cost ?? 0).toFixed(2)], color: 'subtle' }),
-            Text({ children: [')'], color: 'inactive' }),
           ],
         }),
         Box({
@@ -180,6 +177,7 @@ export function register(on) {
             Text({ children: ['🧠 ' + model], color: 'claude' }),
             Text({ children: [' · '], color: 'inactive' }),
             Text({ children: [currentEffort ?? '?'], color: 'text' }),
+            Text({ children: [' ($' + (cost ?? 0).toFixed(2) + ')'], color: 'subtle' }),
           ],
         }),
         Box({
