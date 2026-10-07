@@ -1,11 +1,18 @@
-// Tracks which turn each MCP server was last called in, so the band can
-// highlight servers used in the most recent prompt differently from ones
-// used earlier in the session.
+// Tracks each MCP server's state and the prompt it was last touched in, so
+// the band can show a live working/done/error state for the current prompt
+// and fall back to a dim idle state for servers used in earlier prompts.
 let promptIndex = 0
 let currentModel = null
 let currentEffort = null
 let totalToolCalls = 0
-const mcpLastPrompt = new Map() // server name -> promptIndex it was last called in
+const mcpState = new Map() // server name -> { promptIndex, status: 'working' | 'done' | 'error' }
+
+const MCP_STATUS = {
+  working: { icon: '🔄', color: 'success' },
+  done: { icon: '✅', color: 'success' },
+  error: { icon: '⚠️', color: 'error' },
+  idle: { icon: '🔌', color: 'inactive' },
+}
 
 function mcpServerFromTool(toolName) {
   if (!toolName || !toolName.startsWith('mcp__')) return null
@@ -44,11 +51,19 @@ export function register(on) {
   on('tool.call', async ($, e, next) => {
     totalToolCalls += 1
     const server = mcpServerFromTool(e.tool)
-    if (server) {
-      mcpLastPrompt.set(server, promptIndex)
-    }
+    if (!server) return next(e)
+
+    mcpState.set(server, { promptIndex, status: 'working' })
     $.ui.invalidate('ui.render')
-    return next(e)
+
+    const result = await next(e)
+    mcpState.set(server, { promptIndex, status: result?.isError ? 'error' : 'done' })
+    $.ui.invalidate('ui.render')
+    return result
+  }).catch(async ($, e) => {
+    const server = mcpServerFromTool(e.tool)
+    if (server) mcpState.set(server, { promptIndex, status: 'error' })
+    $.ui.invalidate('ui.render')
   })
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
@@ -61,21 +76,21 @@ export function register(on) {
     const model = currentModel ?? (await $.session.model()) ?? '?'
     const usage = await $.session.usage()
 
-    const sep = (key) => Text({ key, children: [' │ '], color: 'inactive' })
-
     // The MCP row is always present, even with no servers called yet, so the
     // band's height never changes and the rest of the content doesn't jump.
-    const mcpEntries = [...mcpLastPrompt.entries()].sort((a, b) => a[0].localeCompare(b[0]))
-    const mcpChips = mcpEntries.flatMap(([name, lastIdx], i) => {
-      const usedInLastPrompt = lastIdx === promptIndex
+    // A server keeps its working/done/error state only for the prompt it
+    // happened in; once a newer prompt starts, it falls back to idle.
+    const mcpEntries = [...mcpState.entries()].sort((a, b) => a[0].localeCompare(b[0]))
+    const mcpChips = mcpEntries.flatMap(([name, state], i) => {
+      const { icon, color } = state.promptIndex === promptIndex ? MCP_STATUS[state.status] : MCP_STATUS.idle
       const chip = Text({
         key: 'mcp-' + name,
-        children: [name],
-        color: usedInLastPrompt ? 'success' : 'inactive',
-        bold: usedInLastPrompt,
-        dimColor: !usedInLastPrompt,
+        children: [icon + ' ' + name],
+        color,
+        bold: color === 'success',
+        dimColor: color === 'inactive',
       })
-      return i === 0 ? [chip] : [sep('mcp-sep-' + name), chip]
+      return i === 0 ? [chip] : [Text({ key: 'mcp-sep-' + name, children: [', '], color: 'inactive' }), chip]
     })
 
     const percent = usage.context.percent
@@ -110,8 +125,14 @@ export function register(on) {
         }),
         Box({
           flexDirection: 'row',
+          flexWrap: 'wrap',
           columnGap: 1,
-          children: [Text({ children: ['MCP'], color: 'subtle', dimColor: true }), ...mcpChips],
+          children: [
+            Text({ children: ['MCP'], color: 'subtle', dimColor: true }),
+            ...(mcpChips.length > 0
+              ? [Text({ children: ['['], color: 'inactive' }), ...mcpChips, Text({ children: [']'], color: 'inactive' })]
+              : []),
+          ],
         }),
       ],
     })
