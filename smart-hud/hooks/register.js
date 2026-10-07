@@ -198,7 +198,7 @@ export function register(on) {
       children: [
         Box({
           flexDirection: 'row',
-          justifyContent: 'flex-end',
+          justifyContent: 'center',
           children: [Text({ children: ['📁 ' + dir], color: 'text' })],
         }),
         Box({
