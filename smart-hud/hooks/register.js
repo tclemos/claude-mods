@@ -180,20 +180,20 @@ export function register(on) {
         Box({
           flexDirection: 'row',
           children: [
+            bar ? Text({ children: [bar.filled], color: barColor }) : Text({ children: ['?'], color: 'subtle' }),
+            bar ? Text({ children: [bar.empty], color: 'inactive', dimColor: true }) : null,
+            Text({ children: [' ' + (percent ?? '?') + '%'], color: barColor }),
+          ].filter(Boolean),
+        }),
+        Box({
+          flexDirection: 'row',
+          children: [
             Text({ children: ['🧠 ' + model], color: 'claude' }),
             Text({ children: [' · '], color: 'inactive' }),
             Text({ children: [currentEffort ?? '?'], color: 'text' }),
             Text({ children: [' · '], color: 'inactive' }),
             Text({ children: ['💰 $' + (cost ?? 0).toFixed(2)], color: 'warning' }),
           ],
-        }),
-        Box({
-          flexDirection: 'row',
-          children: [
-            bar ? Text({ children: [bar.filled], color: barColor }) : Text({ children: ['?'], color: 'subtle' }),
-            bar ? Text({ children: [bar.empty], color: 'inactive', dimColor: true }) : null,
-            Text({ children: [' ' + (percent ?? '?') + '%'], color: barColor }),
-          ].filter(Boolean),
         }),
       ],
     })
