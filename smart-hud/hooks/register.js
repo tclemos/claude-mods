@@ -19,9 +19,18 @@ function mcpServerFromTool(toolName) {
   return toolName.split('__')[1] || null
 }
 
+const CTX_BAR_WIDTH = 30
+
 function progressBar(percent, width) {
   const filled = Math.round((width * Math.min(100, Math.max(0, percent))) / 100)
-  return '█'.repeat(filled) + '░'.repeat(width - filled)
+  return { filled: '█'.repeat(filled), empty: '░'.repeat(width - filled) }
+}
+
+function ctxColor(percent) {
+  if (percent >= 85) return 'red'
+  if (percent >= 75) return '#ff8c00'
+  if (percent >= 50) return 'yellow'
+  return 'success'
 }
 
 export function register(on) {
@@ -94,9 +103,9 @@ export function register(on) {
     })
 
     const percent = usage.context.percent
-    const percentColor = percent >= 90 ? 'error' : percent >= 70 ? 'warning' : 'subtle'
     const cost = usage.cost?.usd
-    const ctxBar = percent === undefined ? '?' : progressBar(percent, 12) + ' ' + percent + '%'
+    const bar = percent === undefined ? null : progressBar(percent, CTX_BAR_WIDTH)
+    const barColor = percent === undefined ? 'subtle' : ctxColor(percent)
 
     return Box({
       flexDirection: 'column',
@@ -111,7 +120,7 @@ export function register(on) {
           children: [
             Text({ children: ['📁 ' + dir], color: 'text' }),
             Text({ children: ['🧠 ' + model], color: 'claude' }),
-            Text({ children: ['⚡ ' + (currentEffort ?? '?')], color: 'subtle' }),
+            Text({ children: ['⚡ ' + (currentEffort ?? '?')], color: 'text' }),
           ],
         }),
         Box({
@@ -119,7 +128,17 @@ export function register(on) {
           justifyContent: 'space-between',
           children: [
             Text({ children: ['🔧 ' + totalToolCalls + ' calls'], color: 'text' }),
-            Text({ children: ['ctx ' + ctxBar], color: percentColor }),
+            Box({
+              flexDirection: 'row',
+              children: [
+                Text({ children: ['ctx '], color: 'subtle' }),
+                bar
+                  ? Text({ children: [bar.filled], color: barColor })
+                  : Text({ children: ['?'], color: 'subtle' }),
+                bar ? Text({ children: [bar.empty], color: 'inactive', dimColor: true }) : null,
+                Text({ children: [' ' + (percent ?? '?') + '%'], color: barColor }),
+              ].filter(Boolean),
+            }),
             Text({ children: ['💰 $' + (cost ?? 0).toFixed(2)], color: 'subtle' }),
           ],
         }),
