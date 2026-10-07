@@ -4,7 +4,15 @@
 let promptIndex = 0
 let currentModel = null
 let currentEffort = null
+let totalInputTokens = 0
+let totalOutputTokens = 0
 const mcpState = new Map() // server name -> { promptIndex, status: 'working' | 'done' | 'error' }
+
+function formatTokens(n) {
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M'
+  if (n >= 1_000) return (n / 1_000).toFixed(1) + 'k'
+  return String(n)
+}
 
 const MCP_STATUS = {
   working: { icon: '🔄', color: 'success' },
@@ -53,7 +61,14 @@ export function register(on) {
     currentModel = e.model ?? currentModel
     currentEffort = e.effort ?? currentEffort
     $.ui.invalidate('ui.render')
-    yield* next(e)
+    const result = yield* next(e)
+    if (result?.usage) {
+      const u = result.usage
+      totalInputTokens += u.input_tokens + u.cache_read_input_tokens + u.cache_creation_input_tokens
+      totalOutputTokens += u.output_tokens
+      $.ui.invalidate('ui.render')
+    }
+    return result
   })
 
   on('tool.call', async ($, e, next) => {
@@ -126,7 +141,18 @@ export function register(on) {
       flexDirection: 'column',
       alignItems: 'flex-end',
       children: [
-        Text({ children: ['💰 $' + (cost ?? 0).toFixed(2)], color: 'subtle' }),
+        Box({
+          flexDirection: 'row',
+          children: [
+            Text({ children: ['💰 $' + (cost ?? 0).toFixed(2)], color: 'subtle' }),
+            Text({ children: [' · '], color: 'inactive' }),
+            Text({ children: ['↑' + formatTokens(totalInputTokens)], color: 'text' }),
+            Text({ children: [' '], color: 'text' }),
+            Text({ children: ['↓' + formatTokens(totalOutputTokens)], color: 'text' }),
+            Text({ children: [' '], color: 'text' }),
+            Text({ children: ['Σ' + formatTokens(totalInputTokens + totalOutputTokens)], color: 'text' }),
+          ],
+        }),
         Box({
           flexDirection: 'row',
           children: [
