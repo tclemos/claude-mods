@@ -115,10 +115,8 @@ export function register(on) {
           flexWrap: 'wrap',
           columnGap: 1,
           children: [
-            Text({ children: ['MCP'], color: 'subtle', dimColor: true }),
-            ...(mcpChips.length > 0
-              ? [Text({ children: ['['], color: 'inactive' }), ...mcpChips, Text({ children: [']'], color: 'inactive' })]
-              : []),
+            Text({ children: ['MCPs in use:'], color: 'text' }),
+            ...(mcpChips.length > 0 ? mcpChips : [Text({ children: ['None'], color: 'inactive', dimColor: true })]),
           ],
         }),
       ],
@@ -140,7 +138,7 @@ export function register(on) {
         Box({
           flexDirection: 'row',
           children: [
-            Text({ children: ['ctx '], color: 'subtle' }),
+            Text({ children: ['ctx '], color: 'text' }),
             bar ? Text({ children: [bar.filled], color: barColor }) : Text({ children: ['?'], color: 'subtle' }),
             bar ? Text({ children: [bar.empty], color: 'inactive', dimColor: true }) : null,
             Text({ children: [' ' + (percent ?? '?') + '%'], color: barColor }),
