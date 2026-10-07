@@ -12,6 +12,11 @@ function mcpServerFromTool(toolName) {
   return toolName.split('__')[1] || null
 }
 
+function progressBar(percent, width) {
+  const filled = Math.round((width * Math.min(100, Math.max(0, percent))) / 100)
+  return '█'.repeat(filled) + '░'.repeat(width - filled)
+}
+
 export function register(on) {
   on('session.start', async ($, e, next) => {
     try {
@@ -76,30 +81,30 @@ export function register(on) {
     const percent = usage.context.percent
     const percentColor = percent >= 90 ? 'error' : percent >= 70 ? 'warning' : 'subtle'
     const cost = usage.cost?.usd
+    const ctxBar = percent === undefined ? '?' : progressBar(percent, 12) + ' ' + percent + '%'
 
     return Box({
       flexDirection: 'column',
+      width: e.props.bodyColumns,
       borderStyle: 'round',
       borderColor: 'promptBorder',
       paddingX: 1,
       children: [
         Box({
           flexDirection: 'row',
+          justifyContent: 'space-between',
           children: [
             Text({ children: ['📁 ' + dir], color: 'text' }),
-            sep('sep-1'),
             Text({ children: ['🧠 ' + model], color: 'claude' }),
-            sep('sep-2'),
             Text({ children: ['⚡ ' + (currentEffort ?? '?')], color: 'subtle' }),
           ],
         }),
         Box({
           flexDirection: 'row',
+          justifyContent: 'space-between',
           children: [
-            Text({ children: ['🧩 ' + totalToolCalls + ' calls'], color: 'text' }),
-            sep('sep-3'),
-            Text({ children: ['📊 ' + (percent ?? '?') + '% ctx'], color: percentColor }),
-            sep('sep-4'),
+            Text({ children: ['🔧 ' + totalToolCalls + ' calls'], color: 'text' }),
+            Text({ children: ['ctx ' + ctxBar], color: percentColor }),
             Text({ children: ['💰 $' + (cost ?? 0).toFixed(2)], color: 'subtle' }),
           ],
         }),
