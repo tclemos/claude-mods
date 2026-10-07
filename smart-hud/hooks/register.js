@@ -24,7 +24,7 @@ function mcpServerFromTool(toolName) {
   return toolName.split('__')[1] || null
 }
 
-const CTX_BAR_WIDTH = 30
+const CTX_BAR_WIDTH = 20
 
 function progressBar(percent, width) {
   const filled = Math.round((width * Math.min(100, Math.max(0, percent))) / 100)
