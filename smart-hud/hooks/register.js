@@ -144,18 +144,21 @@ export function register(on) {
         Box({
           flexDirection: 'row',
           children: [
+            Text({ children: ['Tokens: '], color: 'text' }),
+            Text({ children: ['Input ' + formatTokens(totalInputTokens)], color: 'text' }),
+            Text({ children: ['  '] }),
+            Text({ children: ['Output ' + formatTokens(totalOutputTokens)], color: 'text' }),
+            Text({ children: ['  '] }),
+            Text({ children: ['Total ' + formatTokens(totalInputTokens + totalOutputTokens)], color: 'text' }),
+            Text({ children: ['  ('], color: 'inactive' }),
             Text({ children: ['💰 $' + (cost ?? 0).toFixed(2)], color: 'subtle' }),
-            Text({ children: [' · '], color: 'inactive' }),
-            Text({ children: ['↑' + formatTokens(totalInputTokens)], color: 'text' }),
-            Text({ children: [' '], color: 'text' }),
-            Text({ children: ['↓' + formatTokens(totalOutputTokens)], color: 'text' }),
-            Text({ children: [' '], color: 'text' }),
-            Text({ children: ['Σ' + formatTokens(totalInputTokens + totalOutputTokens)], color: 'text' }),
+            Text({ children: [')'], color: 'inactive' }),
           ],
         }),
         Box({
           flexDirection: 'row',
           children: [
+            Text({ children: ['Model: '], color: 'text' }),
             Text({ children: ['🧠 ' + model], color: 'claude' }),
             Text({ children: [' · '], color: 'inactive' }),
             Text({ children: [currentEffort ?? '?'], color: 'text' }),
@@ -164,7 +167,7 @@ export function register(on) {
         Box({
           flexDirection: 'row',
           children: [
-            Text({ children: ['ctx '], color: 'text' }),
+            Text({ children: ['Context: '], color: 'text' }),
             bar ? Text({ children: [bar.filled], color: barColor }) : Text({ children: ['?'], color: 'subtle' }),
             bar ? Text({ children: [bar.empty], color: 'inactive', dimColor: true }) : null,
             Text({ children: [' ' + (percent ?? '?') + '%'], color: barColor }),
