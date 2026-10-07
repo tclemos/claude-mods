@@ -11,7 +11,7 @@ const MCP_STATUS = {
   working: { icon: '🔄', color: 'success' },
   done: { icon: '✅', color: 'success' },
   error: { icon: '⚠️', color: 'error' },
-  idle: { icon: '🔌', color: 'inactive' },
+  idle: { icon: '💤', color: 'inactive' },
 }
 
 function mcpServerFromTool(toolName) {
