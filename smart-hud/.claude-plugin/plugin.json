@@ -1,0 +1,6 @@
+{
+  "name": "smart-hud",
+  "version": "0.1.0",
+  "description": "HUD acima do prompt: diretório, modelo, effort e atividade de MCPs na sessão",
+  "author": { "name": "Thiago Lemos" }
+}
