@@ -164,15 +164,15 @@ export function register(on) {
         Box({
           flexDirection: 'row',
           children: [
-            Text({ children: ['Last prompt: '], color: 'text' }),
-            Text({ children: [formatTokenSummary(promptInputTokens, promptOutputTokens)], color: 'text' }),
+            Text({ children: ['Prompt tokens: '], color: 'text' }),
+            Text({ children: [formatTokenSummary(promptInputTokens, promptOutputTokens)], color: 'subtle' }),
           ],
         }),
         Box({
           flexDirection: 'row',
           children: [
             Text({ children: ['Session tokens: '], color: 'text' }),
-            Text({ children: [formatTokenSummary(totalInputTokens, totalOutputTokens)], color: 'text' }),
+            Text({ children: [formatTokenSummary(totalInputTokens, totalOutputTokens)], color: 'subtle' }),
           ],
         }),
         Box({
