@@ -51,39 +51,51 @@ export function register(on) {
     const dir = cwd.split('/').filter(Boolean).pop() || cwd || '?'
     const model = currentModel ?? (await $.session.model()) ?? '?'
 
-    const mcpEntries = [...mcpLastPrompt.entries()].sort((a, b) => a[0].localeCompare(b[0]))
-    const mcpChildren =
-      mcpEntries.length === 0
-        ? [Text({ children: ['none yet'], dimColor: true })]
-        : mcpEntries.map(([name, lastIdx]) => {
-            const usedInLastPrompt = lastIdx === promptIndex
-            return Text({
-              key: 'mcp-' + name,
-              children: [name],
-              color: usedInLastPrompt ? 'green' : undefined,
-              bold: usedInLastPrompt,
-              dimColor: !usedInLastPrompt,
-            })
-          })
+    const sep = () => Text({ children: [' │ '], color: 'inactive' })
 
-    return Box({
-      flexDirection: 'column',
-      children: [
-        Box({
-          flexDirection: 'row',
-          columnGap: 2,
-          children: [
-            Text({ children: ['📁 ' + dir] }),
-            Text({ children: ['🧠 ' + model] }),
-            Text({ children: ['⚡ ' + (currentEffort ?? '?')] }),
-          ],
-        }),
+    const children = [
+      Box({
+        flexDirection: 'row',
+        children: [
+          Text({ children: ['📁 ' + dir], color: 'text' }),
+          sep(),
+          Text({ children: ['🧠 ' + model], color: 'claude' }),
+          sep(),
+          Text({ children: ['⚡ ' + (currentEffort ?? '?')], color: 'subtle' }),
+        ],
+      }),
+    ]
+
+    // Only show the MCP row once an MCP server has actually been called.
+    const mcpEntries = [...mcpLastPrompt.entries()].sort((a, b) => a[0].localeCompare(b[0]))
+    if (mcpEntries.length > 0) {
+      children.push(
         Box({
           flexDirection: 'row',
           columnGap: 1,
-          children: [Text({ children: ['MCP:'] }), ...mcpChildren],
+          children: [
+            Text({ children: ['MCP'], color: 'subtle', dimColor: true }),
+            ...mcpEntries.map(([name, lastIdx]) => {
+              const usedInLastPrompt = lastIdx === promptIndex
+              return Text({
+                key: 'mcp-' + name,
+                children: [name],
+                color: usedInLastPrompt ? 'success' : 'inactive',
+                bold: usedInLastPrompt,
+                dimColor: !usedInLastPrompt,
+              })
+            }),
+          ],
         }),
-      ],
+      )
+    }
+
+    return Box({
+      flexDirection: 'column',
+      borderStyle: 'round',
+      borderColor: 'promptBorder',
+      paddingX: 1,
+      children,
     })
   })
 }
