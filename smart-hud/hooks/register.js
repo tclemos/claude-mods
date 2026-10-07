@@ -184,7 +184,6 @@ export function register(on) {
       alignItems: 'flex-end',
       flexShrink: 0,
       children: [
-        Text({ children: ['📁 ' + dir], color: 'text' }),
         Box({
           flexDirection: 'row',
           children: [
@@ -213,12 +212,22 @@ export function register(on) {
     })
 
     return Box({
-      flexDirection: 'row',
+      flexDirection: 'column',
       width: e.props.bodyColumns,
       borderStyle: 'round',
       borderColor: 'promptBorder',
       paddingX: 1,
-      children: [leftColumn, rightColumn],
+      children: [
+        Box({
+          flexDirection: 'row',
+          justifyContent: 'flex-end',
+          children: [Text({ children: ['📁 ' + dir], color: 'text' })],
+        }),
+        Box({
+          flexDirection: 'row',
+          children: [leftColumn, rightColumn],
+        }),
+      ],
     })
   })
 }
