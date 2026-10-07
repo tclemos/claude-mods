@@ -188,12 +188,12 @@ export function register(on) {
         Box({
           flexDirection: 'row',
           children: [
+            Text({ children: [(percent ?? '?') + '% '], color: barColor }),
             bar ? Text({ children: [bar.filled], color: barColor }) : Text({ children: ['?'], color: 'subtle' }),
             bar ? Text({ children: [bar.empty], color: 'inactive', dimColor: true }) : null,
-            Text({ children: [' ' + (percent ?? '?') + '% '], color: barColor }),
             usage.context.window
               ? Text({
-                  children: ['(' + formatTokens(usage.context.tokens ?? 0) + '/' + formatTokens(usage.context.window) + ')'],
+                  children: [' (' + formatTokens(usage.context.tokens ?? 0) + '/' + formatTokens(usage.context.window) + ')'],
                   color: 'subtle',
                 })
               : null,
