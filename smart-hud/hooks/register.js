@@ -1,5 +1,3 @@
-import { atom, read, update } from 'claude-code'
-
 // Tracks each MCP server's state and the prompt it was last touched in, so
 // the band can show a live working/done/error state for the current prompt
 // and fall back to a dim idle state for servers used in earlier prompts.
@@ -8,23 +6,10 @@ let currentModel = null
 let currentEffort = null
 const mcpState = new Map() // server name -> { promptIndex, status: 'working' | 'done' | 'error' }
 
-// Token counters live in $.state, not module-level variables: a module
-// reload (every save during development, or a plugin re-registration in
-// production) re-initializes module variables but $.state survives it,
-// resetting only on /clear.
-const totalInputTokensAtom = atom({ plugin: 'smart-hud', key: 'totalInputTokens' }, 0)
-const totalOutputTokensAtom = atom({ plugin: 'smart-hud', key: 'totalOutputTokens' }, 0)
-const promptInputTokensAtom = atom({ plugin: 'smart-hud', key: 'promptInputTokens' }, 0)
-const promptOutputTokensAtom = atom({ plugin: 'smart-hud', key: 'promptOutputTokens' }, 0)
-
 function formatTokens(n) {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M'
   if (n >= 1_000) return (n / 1_000).toFixed(1) + 'k'
   return String(n)
-}
-
-function tokenParens(input, output) {
-  return '(↑' + formatTokens(input) + '/↓' + formatTokens(output) + ')'
 }
 
 const MCP_STATUS = {
@@ -90,7 +75,6 @@ async function loadDemoOverrides($) {
   return {
     dir: await $.env.get('SMART_HUD_DEMO_DIR'),
     ctxPercent: (await $.env.get('SMART_HUD_DEMO_CTX_PERCENT')) ?? null,
-    totalTokens: (await $.env.get('SMART_HUD_DEMO_TOKENS')) ?? null,
   }
 }
 
@@ -111,8 +95,6 @@ export function register(on) {
 
   on('prompt.submit', async ($, e, next) => {
     promptIndex += 1
-    await update($, promptInputTokensAtom, () => 0)
-    await update($, promptOutputTokensAtom, () => 0)
     return next(e)
   })
 
@@ -120,16 +102,7 @@ export function register(on) {
     currentModel = e.model ?? currentModel
     currentEffort = e.effort ?? currentEffort
     $.ui.invalidate('ui.render')
-    const result = yield* next(e)
-    if (result?.usage) {
-      const u = result.usage
-      const input = u.input_tokens + u.cache_read_input_tokens + u.cache_creation_input_tokens
-      await update($, totalInputTokensAtom, (v) => v + input)
-      await update($, totalOutputTokensAtom, (v) => v + u.output_tokens)
-      await update($, promptInputTokensAtom, (v) => v + input)
-      await update($, promptOutputTokensAtom, (v) => v + u.output_tokens)
-    }
-    return result
+    yield* next(e)
   })
 
   on('tool.call', async ($, e, next) => {
@@ -165,15 +138,6 @@ export function register(on) {
       usage.context.window = usage.context.window || 200_000
       usage.context.tokens = Math.round((usage.context.window * p) / 100)
     }
-    let totalInputTokens = await read($, totalInputTokensAtom)
-    let totalOutputTokens = await read($, totalOutputTokensAtom)
-    const promptInputTokens = await read($, promptInputTokensAtom)
-    const promptOutputTokens = await read($, promptOutputTokensAtom)
-    if (demo?.totalTokens) {
-      const total = Number(demo.totalTokens)
-      totalInputTokens = Math.round(total * 0.7)
-      totalOutputTokens = total - totalInputTokens
-    }
 
     // The MCP row is always present, even with no servers called yet, so the
     // band's height never changes and the rest of the content doesn't jump.
@@ -205,26 +169,10 @@ export function register(on) {
       children: [
         Box({
           flexDirection: 'row',
-          children: [
-            Text({ children: ['Prompt tokens: '], color: 'text' }),
-            Text({ children: [tokenParens(promptInputTokens, promptOutputTokens)], color: 'subtle' }),
-            Text({ children: [' ' + formatTokens(promptInputTokens + promptOutputTokens)], color: 'text' }),
-          ],
-        }),
-        Box({
-          flexDirection: 'row',
-          children: [
-            Text({ children: ['Session tokens: '], color: 'text' }),
-            Text({ children: [tokenParens(totalInputTokens, totalOutputTokens)], color: 'subtle' }),
-            Text({ children: [' ' + formatTokens(totalInputTokens + totalOutputTokens)], color: 'text' }),
-          ],
-        }),
-        Box({
-          flexDirection: 'row',
           flexWrap: 'wrap',
           columnGap: 1,
           children: [
-            Text({ children: ['MCPs in use:'], color: 'text' }),
+            Text({ children: ['MCPs:'], color: 'text' }),
             ...(mcpChips.length > 0 ? mcpChips : [Text({ children: ['None'], color: 'inactive', dimColor: true })]),
           ],
         }),
