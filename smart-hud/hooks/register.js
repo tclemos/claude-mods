@@ -105,46 +105,11 @@ export function register(on) {
     const bar = percent === undefined ? null : progressBar(percent, CTX_BAR_WIDTH)
     const barColor = percent === undefined ? 'subtle' : ctxColor(percent)
 
-    return Box({
+    const leftColumn = Box({
       flexDirection: 'column',
-      width: e.props.bodyColumns,
-      borderStyle: 'round',
-      borderColor: 'promptBorder',
-      paddingX: 1,
+      flexGrow: 1,
       children: [
-        Box({
-          flexDirection: 'row',
-          justifyContent: 'space-between',
-          children: [
-            Text({ children: ['📁 ' + dir], color: 'text' }),
-            Box({
-              flexDirection: 'row',
-              children: [
-                Text({ children: ['🧠 ' + model], color: 'claude' }),
-                Text({ children: [' · '], color: 'inactive' }),
-                Text({ children: [currentEffort ?? '?'], color: 'text' }),
-              ],
-            }),
-          ],
-        }),
-        Box({
-          flexDirection: 'row',
-          justifyContent: 'space-between',
-          children: [
-            Box({
-              flexDirection: 'row',
-              children: [
-                Text({ children: ['ctx '], color: 'subtle' }),
-                bar
-                  ? Text({ children: [bar.filled], color: barColor })
-                  : Text({ children: ['?'], color: 'subtle' }),
-                bar ? Text({ children: [bar.empty], color: 'inactive', dimColor: true }) : null,
-                Text({ children: [' ' + (percent ?? '?') + '%'], color: barColor }),
-              ].filter(Boolean),
-            }),
-            Text({ children: ['💰 $' + (cost ?? 0).toFixed(2)], color: 'subtle' }),
-          ],
-        }),
+        Text({ children: ['📁 ' + dir], color: 'text' }),
         Box({
           flexDirection: 'row',
           flexWrap: 'wrap',
@@ -157,6 +122,40 @@ export function register(on) {
           ],
         }),
       ],
+    })
+
+    const rightColumn = Box({
+      flexDirection: 'column',
+      alignItems: 'flex-end',
+      children: [
+        Text({ children: ['💰 $' + (cost ?? 0).toFixed(2)], color: 'subtle' }),
+        Box({
+          flexDirection: 'row',
+          children: [
+            Text({ children: ['🧠 ' + model], color: 'claude' }),
+            Text({ children: [' · '], color: 'inactive' }),
+            Text({ children: [currentEffort ?? '?'], color: 'text' }),
+          ],
+        }),
+        Box({
+          flexDirection: 'row',
+          children: [
+            Text({ children: ['ctx '], color: 'subtle' }),
+            bar ? Text({ children: [bar.filled], color: barColor }) : Text({ children: ['?'], color: 'subtle' }),
+            bar ? Text({ children: [bar.empty], color: 'inactive', dimColor: true }) : null,
+            Text({ children: [' ' + (percent ?? '?') + '%'], color: barColor }),
+          ].filter(Boolean),
+        }),
+      ],
+    })
+
+    return Box({
+      flexDirection: 'row',
+      width: e.props.bodyColumns,
+      borderStyle: 'round',
+      borderColor: 'promptBorder',
+      paddingX: 1,
+      children: [leftColumn, rightColumn],
     })
   })
 }
