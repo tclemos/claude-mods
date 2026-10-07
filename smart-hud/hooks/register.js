@@ -53,7 +53,50 @@ function ctxColor(percent) {
   return 'success'
 }
 
+// Visual-testing aid, opt-in only: set SMART_HUD_DEMO=1 (plus any of the
+// SMART_HUD_DEMO_* overrides below) before starting a session to preview
+// extreme values without generating them for real. No effect when unset.
+const DEMO_SERVER_NAMES = [
+  'atlassian',
+  'glean_default',
+  'plugin_slack_slack',
+  'github',
+  'linear',
+  'notion',
+  'figma',
+  'sentry',
+  'datadog',
+  'postgres',
+  'redis',
+  'stripe',
+  'zendesk',
+  'confluence',
+  'pagerduty',
+]
+
+async function loadDemoOverrides($) {
+  if ((await $.env.get('SMART_HUD_DEMO')) !== '1') return null
+
+  const mcpCount = Number((await $.env.get('SMART_HUD_DEMO_MCP_COUNT')) ?? '0')
+  if (mcpCount > 0) {
+    const statuses = ['working', 'done', 'error', 'idle']
+    for (let i = 0; i < mcpCount; i++) {
+      const name = DEMO_SERVER_NAMES[i % DEMO_SERVER_NAMES.length] + (i >= DEMO_SERVER_NAMES.length ? '_' + i : '')
+      const status = statuses[i % statuses.length]
+      mcpState.set(name, { promptIndex: status === 'idle' ? -1 : promptIndex, status })
+    }
+  }
+
+  return {
+    dir: await $.env.get('SMART_HUD_DEMO_DIR'),
+    ctxPercent: (await $.env.get('SMART_HUD_DEMO_CTX_PERCENT')) ?? null,
+    totalTokens: (await $.env.get('SMART_HUD_DEMO_TOKENS')) ?? null,
+  }
+}
+
 export function register(on) {
+  let demo = null
+
   on('session.start', async ($, e, next) => {
     try {
       const settings = await $.settings.read()
@@ -61,6 +104,8 @@ export function register(on) {
     } catch {
       // no-op: fall back to whatever turn.step reports later
     }
+    demo = await loadDemoOverrides($)
+    if (demo) $.ui.invalidate('ui.render')
     return next(e)
   })
 
@@ -110,13 +155,25 @@ export function register(on) {
     const cwd = (await $.session.cwd()) ?? ''
     const home = await $.env.get('HOME')
     const dir =
-      home && cwd === home ? '~' : home && cwd.startsWith(home + '/') ? '~' + cwd.slice(home.length) : cwd || '?'
+      demo?.dir ||
+      (home && cwd === home ? '~' : home && cwd.startsWith(home + '/') ? '~' + cwd.slice(home.length) : cwd || '?')
     const model = currentModel ?? (await $.session.model()) ?? '?'
     const usage = await $.session.usage()
-    const totalInputTokens = await read($, totalInputTokensAtom)
-    const totalOutputTokens = await read($, totalOutputTokensAtom)
+    if (demo?.ctxPercent !== null && demo?.ctxPercent !== undefined) {
+      const p = Number(demo.ctxPercent)
+      usage.context.percent = p
+      usage.context.window = usage.context.window || 200_000
+      usage.context.tokens = Math.round((usage.context.window * p) / 100)
+    }
+    let totalInputTokens = await read($, totalInputTokensAtom)
+    let totalOutputTokens = await read($, totalOutputTokensAtom)
     const promptInputTokens = await read($, promptInputTokensAtom)
     const promptOutputTokens = await read($, promptOutputTokensAtom)
+    if (demo?.totalTokens) {
+      const total = Number(demo.totalTokens)
+      totalInputTokens = Math.round(total * 0.7)
+      totalOutputTokens = total - totalInputTokens
+    }
 
     // The MCP row is always present, even with no servers called yet, so the
     // band's height never changes and the rest of the content doesn't jump.
@@ -182,7 +239,13 @@ export function register(on) {
           children: [
             bar ? Text({ children: [bar.filled], color: barColor }) : Text({ children: ['?'], color: 'subtle' }),
             bar ? Text({ children: [bar.empty], color: 'inactive', dimColor: true }) : null,
-            Text({ children: [' ' + (percent ?? '?') + '%'], color: barColor }),
+            Text({ children: [' ' + (percent ?? '?') + '% '], color: barColor }),
+            usage.context.window
+              ? Text({
+                  children: ['(' + formatTokens(usage.context.tokens ?? 0) + '/' + formatTokens(usage.context.window) + ')'],
+                  color: 'subtle',
+                })
+              : null,
           ].filter(Boolean),
         }),
         Box({
