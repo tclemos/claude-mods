@@ -200,6 +200,8 @@ export function register(on) {
     const leftColumn = Box({
       flexDirection: 'column',
       flexGrow: 1,
+      flexShrink: 1,
+      minWidth: 0,
       children: [
         Box({
           flexDirection: 'row',
@@ -232,6 +234,7 @@ export function register(on) {
     const rightColumn = Box({
       flexDirection: 'column',
       alignItems: 'flex-end',
+      flexShrink: 0,
       children: [
         Text({ children: ['📁 ' + dir], color: 'text' }),
         Box({
