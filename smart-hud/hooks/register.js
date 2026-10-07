@@ -225,6 +225,7 @@ export function register(on) {
         }),
         Box({
           flexDirection: 'row',
+          columnGap: 3,
           children: [leftColumn, rightColumn],
         }),
       ],
