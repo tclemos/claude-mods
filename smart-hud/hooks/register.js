@@ -48,54 +48,50 @@ export function register(on) {
     const { Box, Text } = $.ui.resolve(e)
 
     const cwd = (await $.session.cwd()) ?? ''
-    const dir = cwd.split('/').filter(Boolean).pop() || cwd || '?'
+    const home = await $.env.get('HOME')
+    const dir =
+      home && cwd === home ? '~' : home && cwd.startsWith(home + '/') ? '~' + cwd.slice(home.length) : cwd || '?'
     const model = currentModel ?? (await $.session.model()) ?? '?'
 
-    const sep = () => Text({ children: [' │ '], color: 'inactive' })
+    const sep = (key) => Text({ key, children: [' │ '], color: 'inactive' })
 
-    const children = [
-      Box({
-        flexDirection: 'row',
-        children: [
-          Text({ children: ['📁 ' + dir], color: 'text' }),
-          sep(),
-          Text({ children: ['🧠 ' + model], color: 'claude' }),
-          sep(),
-          Text({ children: ['⚡ ' + (currentEffort ?? '?')], color: 'subtle' }),
-        ],
-      }),
-    ]
-
-    // Only show the MCP row once an MCP server has actually been called.
+    // The MCP row is always present, even with no servers called yet, so the
+    // band's height never changes and the rest of the content doesn't jump.
     const mcpEntries = [...mcpLastPrompt.entries()].sort((a, b) => a[0].localeCompare(b[0]))
-    if (mcpEntries.length > 0) {
-      children.push(
-        Box({
-          flexDirection: 'row',
-          columnGap: 1,
-          children: [
-            Text({ children: ['MCP'], color: 'subtle', dimColor: true }),
-            ...mcpEntries.map(([name, lastIdx]) => {
-              const usedInLastPrompt = lastIdx === promptIndex
-              return Text({
-                key: 'mcp-' + name,
-                children: [name],
-                color: usedInLastPrompt ? 'success' : 'inactive',
-                bold: usedInLastPrompt,
-                dimColor: !usedInLastPrompt,
-              })
-            }),
-          ],
-        }),
-      )
-    }
+    const mcpChips = mcpEntries.flatMap(([name, lastIdx], i) => {
+      const usedInLastPrompt = lastIdx === promptIndex
+      const chip = Text({
+        key: 'mcp-' + name,
+        children: [name],
+        color: usedInLastPrompt ? 'success' : 'inactive',
+        bold: usedInLastPrompt,
+        dimColor: !usedInLastPrompt,
+      })
+      return i === 0 ? [chip] : [sep('mcp-sep-' + name), chip]
+    })
 
     return Box({
       flexDirection: 'column',
       borderStyle: 'round',
       borderColor: 'promptBorder',
       paddingX: 1,
-      children,
+      children: [
+        Box({
+          flexDirection: 'row',
+          children: [
+            Text({ children: ['📁 ' + dir], color: 'text' }),
+            sep('sep-1'),
+            Text({ children: ['🧠 ' + model], color: 'claude' }),
+            sep('sep-2'),
+            Text({ children: ['⚡ ' + (currentEffort ?? '?')], color: 'subtle' }),
+          ],
+        }),
+        Box({
+          flexDirection: 'row',
+          columnGap: 1,
+          children: [Text({ children: ['MCP'], color: 'subtle', dimColor: true }), ...mcpChips],
+        }),
+      ],
     })
   })
 }
