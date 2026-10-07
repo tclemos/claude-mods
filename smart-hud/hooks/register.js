@@ -23,6 +23,10 @@ function formatTokens(n) {
   return String(n)
 }
 
+function formatTokenSummary(input, output) {
+  return '(↑' + formatTokens(input) + '/↓' + formatTokens(output) + ') ' + formatTokens(input + output)
+}
+
 const MCP_STATUS = {
   working: { icon: '🔄', color: 'success' },
   done: { icon: '✅', color: 'success' },
@@ -161,22 +165,14 @@ export function register(on) {
           flexDirection: 'row',
           children: [
             Text({ children: ['Last prompt: '], color: 'text' }),
-            Text({ children: ['Input ' + formatTokens(promptInputTokens)], color: 'text' }),
-            Text({ children: [' · '], color: 'inactive' }),
-            Text({ children: ['Output ' + formatTokens(promptOutputTokens)], color: 'text' }),
-            Text({ children: [' · '], color: 'inactive' }),
-            Text({ children: ['Total ' + formatTokens(promptInputTokens + promptOutputTokens)], color: 'text' }),
+            Text({ children: [formatTokenSummary(promptInputTokens, promptOutputTokens)], color: 'text' }),
           ],
         }),
         Box({
           flexDirection: 'row',
           children: [
             Text({ children: ['Session tokens: '], color: 'text' }),
-            Text({ children: ['Input ' + formatTokens(totalInputTokens)], color: 'text' }),
-            Text({ children: [' · '], color: 'inactive' }),
-            Text({ children: ['Output ' + formatTokens(totalOutputTokens)], color: 'text' }),
-            Text({ children: [' · '], color: 'inactive' }),
-            Text({ children: ['Total ' + formatTokens(totalInputTokens + totalOutputTokens)], color: 'text' }),
+            Text({ children: [formatTokenSummary(totalInputTokens, totalOutputTokens)], color: 'text' }),
           ],
         }),
         Box({
