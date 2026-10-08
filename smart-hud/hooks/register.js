@@ -104,24 +104,6 @@ export function register(on) {
     } catch {
       // no-op: liveEffort() covers this once the first render runs
     }
-
-    // TEMP DEBUG: dump every /config row and the raw settings effortLevel so
-    // we can see the real key this install uses for effort. Remove once the
-    // bug is diagnosed.
-    try {
-      const rows = await $.config.list()
-      const dump = rows.map((r) => `${r.key}=${JSON.stringify(r.value)}`).join(' | ')
-      $.ui.log('[smart-hud debug] config rows (' + rows.length + '): ' + dump)
-    } catch (err) {
-      $.ui.log('[smart-hud debug] config.list() failed: ' + String(err))
-    }
-    try {
-      const settings = await $.settings.read()
-      $.ui.log('[smart-hud debug] settings.effortLevel = ' + JSON.stringify(settings?.effortLevel))
-    } catch (err) {
-      $.ui.log('[smart-hud debug] settings.read() failed: ' + String(err))
-    }
-
     return next(e)
   })
 
@@ -208,11 +190,11 @@ export function register(on) {
           flexDirection: 'row',
           children: [
             Text({ children: ['🧠 ' + model], color: 'claude' }),
-            Text({ children: [' · '], color: 'inactive' }),
-            Text({ children: [effort ?? '?'], color: 'text' }),
+            effort ? Text({ children: [' · '], color: 'inactive' }) : null,
+            effort ? Text({ children: [effort], color: 'text' }) : null,
             Text({ children: [' · '], color: 'inactive' }),
             Text({ children: ['💰 $' + (cost ?? 0).toFixed(2)], color: 'warning' }),
-          ],
+          ].filter(Boolean),
         }),
         Box({
           flexDirection: 'row',
