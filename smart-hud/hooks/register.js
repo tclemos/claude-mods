@@ -3,6 +3,8 @@
 // current prompt and fall back to a dim idle state for ones used earlier.
 let promptIndex = 0
 let currentEffort = null
+let knownModelId = null
+let knownModelLabel = null
 const mcpState = new Map() // server name -> { promptIndex, status: 'working' | 'done' | 'error' }
 const skillState = new Map() // skill name -> { promptIndex, status: 'working' | 'done' | 'error' }
 
@@ -83,29 +85,53 @@ function ctxColor(percent) {
   return 'success'
 }
 
-// /effort has no live getter on $.session, unlike $.session.model(). Read it
-// from the same /config row the menu and /effort itself use, so a change
-// shows up immediately instead of waiting for the next turn.step.
-async function liveEffort($, fallback) {
+// Effort has no live getter on $.session and no /config row either: it is kept
+// per model, as settings.modelSettings[<model id>].effortLevel. Only turn.step
+// reveals which id this session resolved to, so before the first turn — and
+// after a model switch the next turn hasn't confirmed yet — the value is
+// genuinely unknown and the band shows nothing instead of the previous model's.
+async function liveEffort($, modelLabel) {
+  if (!knownModelId || modelLabel !== knownModelLabel) return null
   try {
-    const rows = await $.config.list()
-    const row = rows.find((r) => r.key === 'effort' || r.key.endsWith('.effortLevel'))
-    return row?.value ?? fallback
+    const settings = await $.settings.read()
+    return settings?.modelSettings?.[knownModelId]?.effortLevel ?? currentEffort
   } catch {
-    return fallback
+    return currentEffort
   }
 }
 
-export function register(on) {
-  on('session.start', async ($, e, next) => {
-    try {
-      const settings = await $.settings.read()
-      currentEffort = settings?.effortLevel ?? currentEffort
-    } catch {
-      // no-op: liveEffort() covers this once the first render runs
+// /model and /effort may return before their picker has settled, and the engine
+// raises no event for the write, so poll for the value to actually change and
+// redraw once it does. Bounded, so a dismissed picker stops costing anything.
+const PICK_POLL_MS = 500
+const PICK_POLL_TICKS = 40
+
+async function modelEffortSignature($) {
+  const label = await $.session.model()
+  return label + '/' + (await liveEffort($, label))
+}
+
+async function refreshAfterPick($, e, next) {
+  const before = await modelEffortSignature($)
+  const result = await next(e)
+
+  let ticks = 0
+  const timer = $.clock.every(PICK_POLL_MS, async () => {
+    ticks += 1
+    if ((await modelEffortSignature($)) !== before) {
+      $.ui.invalidate('ui.render')
+      timer.cancel()
+    } else if (ticks >= PICK_POLL_TICKS) {
+      timer.cancel()
     }
-    return next(e)
   })
+
+  return result
+}
+
+export function register(on) {
+  on('command.run', { command: 'model' }, refreshAfterPick)
+  on('command.run', { command: 'effort' }, refreshAfterPick)
 
   on('prompt.submit', async ($, e, next) => {
     promptIndex += 1
@@ -113,8 +139,9 @@ export function register(on) {
   })
 
   on('turn.step', async function* ($, e, next) {
-    // Fallback for liveEffort() when a model has no /config effort row.
     currentEffort = e.effort ?? currentEffort
+    knownModelId = e.model ?? knownModelId
+    knownModelLabel = await $.session.model()
     $.ui.invalidate('ui.render')
     yield* next(e)
   })
@@ -144,8 +171,9 @@ export function register(on) {
     const dir =
       home && cwd === home ? '~' : home && cwd.startsWith(home + '/') ? '~' + cwd.slice(home.length) : cwd || '?'
     const branch = await getGitBranch($, cwd)
-    const model = (await $.session.model()) ?? '?'
-    const effort = await liveEffort($, currentEffort)
+    const modelLabel = await $.session.model()
+    const model = modelLabel ?? '?'
+    const effort = await liveEffort($, modelLabel)
     const usage = await $.session.usage()
 
     // Before the first turn, usage.context.percent isn't reported yet. Show
