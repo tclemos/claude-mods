@@ -46,11 +46,34 @@ function formatTokens(n) {
   return String(n)
 }
 
+// Git branch is cached per cwd for a short window so a render triggered by
+// every tool call / turn.step doesn't spawn a `git` process each time.
+let gitCache = { cwd: null, branch: null, fetchedAt: 0 }
+const GIT_CACHE_MS = 2000
+
+async function getGitBranch($, cwd) {
+  const now = Date.now()
+  if (gitCache.cwd === cwd && now - gitCache.fetchedAt < GIT_CACHE_MS) {
+    return gitCache.branch
+  }
+
+  let branch = null
+  try {
+    const result = await $.process.run(['git', 'rev-parse', '--abbrev-ref', 'HEAD'], { cwd, timeoutMs: 1000 })
+    if (result.exitCode === 0) branch = result.stdout.trim() || null
+  } catch {
+    branch = null
+  }
+
+  gitCache = { cwd, branch, fetchedAt: now }
+  return branch
+}
+
 const CTX_BAR_WIDTH = 20
 
 function progressBar(percent, width) {
   const filled = Math.round((width * Math.min(100, Math.max(0, percent))) / 100)
-  return { filled: '█'.repeat(filled), empty: '░'.repeat(width - filled) }
+  return { filled: '▰'.repeat(filled), empty: '▱'.repeat(width - filled) }
 }
 
 function ctxColor(percent) {
@@ -120,6 +143,7 @@ export function register(on) {
     const home = await $.env.get('HOME')
     const dir =
       home && cwd === home ? '~' : home && cwd.startsWith(home + '/') ? '~' + cwd.slice(home.length) : cwd || '?'
+    const branch = await getGitBranch($, cwd)
     const model = (await $.session.model()) ?? '?'
     const effort = await liveEffort($, currentEffort)
     const usage = await $.session.usage()
@@ -177,7 +201,7 @@ export function register(on) {
           children: [
             Text({ children: [percent + '% '], color: barColor }),
             Text({ children: [bar.filled], color: barColor }),
-            Text({ children: [bar.empty], color: 'inactive', dimColor: true }),
+            Text({ children: [bar.empty] }),
             usage.context.window
               ? Text({
                   children: [' (' + formatTokens(usage.context.tokens ?? 0) + '/' + formatTokens(usage.context.window) + ')'],
@@ -199,7 +223,10 @@ export function register(on) {
         Box({
           flexDirection: 'row',
           justifyContent: 'center',
-          children: [Text({ children: ['📁 ' + dir], color: 'text' })],
+          children: [
+            Text({ children: ['📁 ' + dir], color: 'text' }),
+            branch ? Text({ children: [':' + branch], color: 'suggestion' }) : null,
+          ].filter(Boolean),
         }),
         Box({
           flexDirection: 'row',
