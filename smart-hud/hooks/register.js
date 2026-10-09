@@ -29,16 +29,24 @@ function activityKey(e) {
   return null
 }
 
-function buildChips(Text, state, prompt) {
+// The status icon is the chip's control, so the name beside it can keep the
+// colour that carries the status — a Button has none of its own.
+function buildChips(Box, Text, pressable, state, prompt, command) {
   const entries = [...state.entries()].sort((a, b) => a[0].localeCompare(b[0]))
   return entries.flatMap(([name, s], i) => {
     const { icon, color } = s.promptIndex === prompt ? ACTIVITY_STATUS[s.status] : ACTIVITY_STATUS.idle
-    const chip = Text({
-      key: name,
-      children: [icon + ' ' + name],
-      color,
-      bold: color === 'success',
-      dimColor: color === 'inactive',
+    const chip = Box({
+      key: 'chip-' + name,
+      flexDirection: 'row',
+      children: [
+        pressable('chip-' + command + '-' + name, icon, command, name),
+        Text({
+          children: [' ' + name],
+          color,
+          bold: color === 'success',
+          dimColor: color === 'inactive',
+        }),
+      ],
     })
     return i === 0 ? [chip] : [Text({ key: name + '-sep', children: [', '], color: 'inactive' }), chip]
   })
@@ -186,17 +194,18 @@ export function register(on) {
     // Button is the only element that takes a press and it carries no colour of
     // its own; Text is the only one that does. So a readout keeps its colour by
     // splitting: the icon is the control, the value stays Text beside it.
-    const pressable = (key, label, command) =>
+    const pressable = (key, label, command, args) =>
       Button({
         key,
         label,
         plain: true,
         // `hover` binds to the nearest enclosing keyed Box, so the control
-        // underlines whenever the pointer is anywhere over its row. `inverse`
-        // is set against the invert the pointer applies to a Button by itself.
+        // underlines whenever the pointer is anywhere over its row. `inverse:
+        // false` cancels the background the pointer otherwise paints, which the
+        // docs call unconditional but the surface does honour.
         hover: { underline: true, inverse: false },
         onPress: () => {
-          $.command.run({ command }).catch(() => $.ui.toast('/' + command + ' could not run'))
+          $.command.run({ command, args }).catch(() => $.ui.toast('/' + command + ' could not run'))
         },
       })
 
@@ -239,7 +248,7 @@ export function register(on) {
         children: [
           pressable(commandKey, label, commandKey),
           ...(state.size > 0
-            ? buildChips(Text, state, promptIndex)
+            ? buildChips(Box, Text, pressable, state, promptIndex, commandKey)
             : [Text({ children: ['None'], color: 'inactive', dimColor: true })]),
         ],
       })
@@ -268,9 +277,11 @@ export function register(on) {
           ].filter(Boolean),
         }),
         Box({
+          key: 'readout-context',
           flexDirection: 'row',
           children: [
-            Text({ children: [percent + '% '], color: barColor }),
+            pressable('context', '📊', 'context'),
+            Text({ children: [' ' + percent + '% '], color: barColor }),
             Text({ children: [bar.filled], color: barColor }),
             Text({ children: [bar.empty] }),
             usage.context.window
