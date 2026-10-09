@@ -185,26 +185,24 @@ export function register(on) {
 
     // Button is the only element that takes a press and it carries no colour of
     // its own; Text is the only one that does. So a readout keeps its colour by
-    // splitting: the icon is the control, the value stays Text beside it.
+    // splitting: the icon is the control, the value stays Text beside it. The
+    // control is left to highlight itself the way the surface highlights every
+    // other one, under the pointer and under the focus ring alike.
     const pressable = (key, label, command, dim) =>
       Button({
         key,
         label,
         plain: true,
         // Dim at rest, full strength under the pointer: the closest a Button
-        // gets to `subtle`, and an affordance of its own.
+        // gets to `subtle`.
         ...(dim ? { dimColor: true } : {}),
-        // `hover` binds to the nearest enclosing keyed Box, so the control
-        // underlines whenever the pointer is anywhere over its row. `inverse:
-        // false` cancels the background the pointer otherwise paints, which the
-        // docs call unconditional but the surface does honour.
-        hover: { underline: true, inverse: false },
         onPress: () => {
           $.command.run({ command }).catch(() => $.ui.toast('/' + command + ' could not run'))
         },
       })
 
-    // The keyed Box is what `hover` above reacts to; without a key it is refused.
+    // The brackets stay outside the control so the highlight covers the figures
+    // alone, rather than running from the progress bar to the closing bracket.
     const readout = (key, icon, value, command, color) =>
       Box({
         key: 'readout-' + key,
@@ -277,8 +275,8 @@ export function register(on) {
             Text({ children: [percent + '% '], color: barColor }),
             Text({ children: [bar.filled], color: barColor }),
             Text({ children: [bar.empty] }),
-            // The gap and the brackets sit outside the control, so the hover
-            // underline runs under the counts alone and never touches the bar.
+            // The gap and the brackets sit outside the control, so its
+            // highlight covers the counts alone and never touches the bar.
             usage.context.window
               ? Box({
                   key: 'readout-context',
