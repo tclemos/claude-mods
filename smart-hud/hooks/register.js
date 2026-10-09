@@ -338,8 +338,8 @@ export function register(on) {
                   key: 'readout-context',
                   flexDirection: 'row',
                   children: [
-                    Text({ children: [' ('], dimColor: true }),
-                    pressable('context', contextTrailing.padStart(trailingWidth), 'context', true),
+                    Text({ children: [' ' + ' '.repeat(trailingWidth - contextTrailing.length) + '('], dimColor: true }),
+                    pressable('context', contextTrailing, 'context', true),
                     Text({ children: [')'], dimColor: true }),
                   ],
                 })
@@ -362,8 +362,8 @@ export function register(on) {
                       key: 'readout-ratelimit',
                       flexDirection: 'row',
                       children: [
-                        Text({ children: [' ('], dimColor: true }),
-                        pressable('ratelimit', usageTrailing.padStart(trailingWidth), 'usage', true),
+                        Text({ children: [' ' + ' '.repeat(trailingWidth - usageTrailing.length) + '('], dimColor: true }),
+                        pressable('ratelimit', usageTrailing, 'usage', true),
                         Text({ children: [')'], dimColor: true }),
                       ],
                     })
