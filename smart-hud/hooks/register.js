@@ -280,20 +280,29 @@ export function register(on) {
           ].filter(Boolean),
         }),
         Box({
-          key: 'readout-context',
           flexDirection: 'row',
           children: [
             Text({ children: [percent + '% '], color: barColor }),
             Text({ children: [bar.filled], color: barColor }),
             Text({ children: [bar.empty] }),
+            // The gap and the brackets sit outside the control, so the hover
+            // underline runs under the counts alone and never touches the bar.
             usage.context.window
-              ? pressable(
-                  'context',
-                  ' (' + formatTokens(usage.context.tokens ?? 0) + '/' + formatTokens(usage.context.window) + ')',
-                  'context',
-                  undefined,
-                  true
-                )
+              ? Box({
+                  key: 'readout-context',
+                  flexDirection: 'row',
+                  children: [
+                    Text({ children: [' ('], dimColor: true }),
+                    pressable(
+                      'context',
+                      formatTokens(usage.context.tokens ?? 0) + '/' + formatTokens(usage.context.window),
+                      'context',
+                      undefined,
+                      true
+                    ),
+                    Text({ children: [')'], dimColor: true }),
+                  ],
+                })
               : null,
           ].filter(Boolean),
         }),
