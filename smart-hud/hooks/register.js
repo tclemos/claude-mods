@@ -20,6 +20,15 @@ function mcpServerFromTool(toolName) {
   return toolName.split('__')[1] || null
 }
 
+// A tool call carries its arguments on the event itself ({ tool, tool_use_id }
+// & the tool's own input), so the Skill tool's name is e.skill — not e.input.
+function activityKey(e) {
+  const server = mcpServerFromTool(e.tool)
+  if (server) return { map: mcpState, name: server }
+  if (e.tool === 'Skill' && e.skill) return { map: skillState, name: e.skill }
+  return null
+}
+
 function buildChips(Text, state, prompt) {
   const entries = [...state.entries()].sort((a, b) => a[0].localeCompare(b[0]))
   return entries.flatMap(([name, s], i) => {
@@ -140,25 +149,24 @@ export function register(on) {
   })
 
   on('tool.call', async ($, e, next) => {
-    const server = mcpServerFromTool(e.tool)
-    if (!server) return next(e)
+    const activity = activityKey(e)
+    if (!activity) return next(e)
 
-    mcpState.set(server, { promptIndex, status: 'working' })
+    activity.map.set(activity.name, { promptIndex, status: 'working' })
     $.ui.invalidate('ui.render')
 
     const result = await next(e)
-    mcpState.set(server, { promptIndex, status: result?.isError ? 'error' : 'done' })
+    activity.map.set(activity.name, { promptIndex, status: result?.isError ? 'error' : 'done' })
     $.ui.invalidate('ui.render')
     return result
   }).catch(async ($, e) => {
-    const server = mcpServerFromTool(e.tool)
-    if (server) mcpState.set(server, { promptIndex, status: 'error' })
+    const activity = activityKey(e)
+    if (activity) activity.map.set(activity.name, { promptIndex, status: 'error' })
     $.ui.invalidate('ui.render')
   })
 
-  // Skills are tracked here rather than on the Skill tool call: this fires for
-  // every way one is used (/name, the Skill tool, a preload), and the tool's
-  // arguments are spread on `e` itself, so the old `e.input.skill` never matched.
+  // The tool call above only sees a skill the model invoked; this catches the
+  // ones a typed /name expands, which never reach the Skill tool.
   on('skill.prompt', async ($, e, next) => {
     skillState.set(e.skill, { promptIndex, status: 'working' })
     $.ui.invalidate('ui.render')
