@@ -183,19 +183,22 @@ export function register(on) {
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     const { Box, Text, Button } = $.ui.resolve(e)
 
-    // Button is the only element that takes a press and it has no resting color
-    // of its own: `plain` draws the bare label with none, and `variant` is the
-    // only way to get one — the accent, and only with its `[ ]` around it.
-    const action = (key, label, command, variant) =>
+    // Button is the only element that takes a press, and it carries no color of
+    // its own at rest: `color` on it is ignored, `variant` only offers the one
+    // accent with brackets around it, and a label refuses the control
+    // characters an ANSI colour would need. Underline on hover is the whole
+    // affordance available, so these read in the default colour at rest.
+    const action = (key, label, command) =>
       Button({
         key,
         label,
-        ...(variant ? { variant } : { plain: true }),
+        plain: true,
         hover: { scope: 'smart-hud-' + key, underline: true },
         onPress: () => {
           $.command.run({ command }).catch(() => $.ui.toast('/' + command + ' could not run'))
         },
       })
+
 
     const cwd = (await $.session.cwd()) ?? ''
     const home = await $.env.get('HOME')
@@ -248,9 +251,11 @@ export function register(on) {
         Box({
           flexDirection: 'row',
           children: [
-            action('model', '🧠 ' + model, 'model', 'primary'),
-            effort ? action('effort', effort, 'effort', 'primary') : null,
-            action('cost', '💰 $' + (cost ?? 0).toFixed(2), 'usage', 'primary'),
+            action('model', '🧠 ' + model, 'model'),
+            effort ? Text({ children: [' · '], color: 'inactive' }) : null,
+            effort ? action('effort', effort, 'effort') : null,
+            Text({ children: [' · '], color: 'inactive' }),
+            action('cost', '💰 $' + (cost ?? 0).toFixed(2), 'usage'),
           ].filter(Boolean),
         }),
         Box({
