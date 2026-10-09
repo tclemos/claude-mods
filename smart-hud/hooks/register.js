@@ -150,25 +150,7 @@ export function register(on) {
   // for the length of an idle turn. A hot reload cancels this automatically,
   // so a later reload never stacks a second tick alongside it.
   on('session.start', async ($, e, next) => {
-    $.clock.every(60_000, async () => {
-      // TEMP DEBUG: confirm the tick fires and the countdown actually moves
-      // during a session blocked by a rate limit. Remove once diagnosed.
-      try {
-        const usage = await $.session.usage()
-        const fiveHour = usage.rateLimits?.find((r) => r.kind === 'five_hour')
-        $.ui.log(
-          '[smart-hud debug] tick at ' +
-            new Date(await $.clock.now()).toISOString() +
-            ' resetsAt=' +
-            (fiveHour?.resetsAt ?? 'none') +
-            ' resetIn=' +
-            (fiveHour ? formatResetIn(fiveHour.resetsAt, await $.clock.now()) : 'n/a'),
-        )
-      } catch (err) {
-        $.ui.log('[smart-hud debug] tick failed: ' + String(err))
-      }
-      $.ui.invalidate('ui.render')
-    })
+    $.clock.every(60_000, () => $.ui.invalidate('ui.render'))
     return next(e)
   })
 
@@ -302,7 +284,7 @@ export function register(on) {
 
     const rightColumn = Box({
       flexDirection: 'column',
-      alignItems: 'flex-end',
+      alignItems: 'flex-start',
       flexShrink: 0,
       children: [
         Box({
@@ -319,7 +301,7 @@ export function register(on) {
           flexDirection: 'row',
           children: [
             Text({ children: ['Context '], color: 'inactive' }),
-            Text({ children: [percent + '% '], color: barColor }),
+            Text({ children: [String(percent).padStart(3) + '% '], color: barColor }),
             Text({ children: [bar.filled], color: barColor }),
             Text({ children: [bar.empty] }),
             // The gap and the brackets sit outside the control, so its
@@ -347,7 +329,10 @@ export function register(on) {
               flexDirection: 'row',
               children: [
                 Text({ children: ['Usage   '], color: 'inactive' }),
-                Text({ children: [Math.round(fiveHour.percentUsed) + '% '], color: ctxColor(fiveHour.percentUsed) }),
+                Text({
+                  children: [String(Math.round(fiveHour.percentUsed)).padStart(3) + '% '],
+                  color: ctxColor(fiveHour.percentUsed),
+                }),
                 Text({ children: [fiveHourBar.filled], color: ctxColor(fiveHour.percentUsed) }),
                 Text({ children: [fiveHourBar.empty] }),
                 fiveHourResetIn
