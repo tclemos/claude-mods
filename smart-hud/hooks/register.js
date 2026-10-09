@@ -181,7 +181,21 @@ export function register(on) {
   })
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
-    const { Box, Text } = $.ui.resolve(e)
+    const { Box, Text, Button } = $.ui.resolve(e)
+
+    // Button is the only element that takes a press, and it carries no resting
+    // color — only dimColor and a hover override — so a clickable value trades
+    // its accent for an underline (plus the pointer's own invert) on hover.
+    const action = (key, label, command, hover) =>
+      Button({
+        key,
+        label,
+        plain: true,
+        hover: { scope: 'smart-hud-' + key, underline: true, ...hover },
+        onPress: () => {
+          $.command.run({ command }).catch(() => $.ui.toast('/' + command + ' could not run'))
+        },
+      })
 
     const cwd = (await $.session.cwd()) ?? ''
     const home = await $.env.get('HOME')
@@ -205,13 +219,13 @@ export function register(on) {
     // Each activity row (MCPs, Skills) is always present, even with nothing
     // called yet, so the band's height never changes and the rest of the
     // content doesn't jump when the first one happens.
-    const activityRow = (label, state) =>
+    const activityRow = (label, state, commandKey) =>
       Box({
         flexDirection: 'row',
         flexWrap: 'wrap',
         columnGap: 1,
         children: [
-          Text({ children: [label], color: 'text' }),
+          action(commandKey, label, commandKey),
           ...(state.size > 0
             ? buildChips(Text, state, promptIndex)
             : [Text({ children: ['None'], color: 'inactive', dimColor: true })]),
@@ -223,7 +237,7 @@ export function register(on) {
       flexGrow: 1,
       flexShrink: 1,
       minWidth: 0,
-      children: [activityRow('MCPs:', mcpState), activityRow('Skills:', skillState)],
+      children: [activityRow('MCPs:', mcpState, 'mcp'), activityRow('Skills:', skillState, 'skills')],
     })
 
     const rightColumn = Box({
@@ -234,11 +248,11 @@ export function register(on) {
         Box({
           flexDirection: 'row',
           children: [
-            Text({ children: ['🧠 ' + model], color: 'claude' }),
+            action('model', '🧠 ' + model, 'model', { color: 'claude' }),
             effort ? Text({ children: [' · '], color: 'inactive' }) : null,
-            effort ? Text({ children: [effort], color: 'text' }) : null,
+            effort ? action('effort', effort, 'effort') : null,
             Text({ children: [' · '], color: 'inactive' }),
-            Text({ children: ['💰 $' + (cost ?? 0).toFixed(2)], color: 'warning' }),
+            action('cost', '💰 $' + (cost ?? 0).toFixed(2), 'usage', { color: 'warning' }),
           ].filter(Boolean),
         }),
         Box({
