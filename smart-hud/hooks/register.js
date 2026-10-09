@@ -50,6 +50,19 @@ function formatTokens(n) {
   return String(n)
 }
 
+// `resetsAt` is an ISO timestamp; rateLimits is absent off a subscription
+// (a pay-as-you-go or gateway account may never report one), so this reads
+// null in that case rather than a wrong duration.
+function formatResetIn(resetsAtIso, nowMs) {
+  if (!resetsAtIso) return null
+  const diffMs = new Date(resetsAtIso).getTime() - nowMs
+  if (diffMs <= 0) return 'resetting'
+  const totalMin = Math.round(diffMs / 60_000)
+  const h = Math.floor(totalMin / 60)
+  const m = totalMin % 60
+  return h > 0 ? h + 'h ' + m + 'm' : m + 'm'
+}
+
 // Git branch is cached per cwd for a short window so a render triggered by
 // every tool call / turn.step doesn't spawn a `git` process each time.
 let gitCache = { cwd: null, branch: null, fetchedAt: 0 }
@@ -229,6 +242,12 @@ export function register(on) {
     const bar = progressBar(percent, CTX_BAR_WIDTH)
     const barColor = hasContextUsage ? ctxColor(percent) : 'inactive'
 
+    // Absent off a subscription (a pay-as-you-go or gateway account), so the
+    // row below is skipped entirely rather than drawn empty or guessed.
+    const fiveHour = usage.rateLimits?.find((r) => r.kind === 'five_hour')
+    const fiveHourBar = fiveHour ? progressBar(fiveHour.percentUsed, CTX_BAR_WIDTH) : null
+    const fiveHourResetIn = fiveHour ? formatResetIn(fiveHour.resetsAt, await $.clock.now()) : null
+
     // Each activity row (MCPs, Skills) is always present, even with nothing
     // called yet, so the band's height never changes and the rest of the
     // content doesn't jump when the first one happens.
@@ -272,6 +291,7 @@ export function register(on) {
         Box({
           flexDirection: 'row',
           children: [
+            Text({ children: ['Context '], color: 'inactive' }),
             Text({ children: [percent + '% '], color: barColor }),
             Text({ children: [bar.filled], color: barColor }),
             Text({ children: [bar.empty] }),
@@ -295,6 +315,28 @@ export function register(on) {
               : null,
           ].filter(Boolean),
         }),
+        fiveHour
+          ? Box({
+              flexDirection: 'row',
+              children: [
+                Text({ children: ['Usage   '], color: 'inactive' }),
+                Text({ children: [Math.round(fiveHour.percentUsed) + '% '], color: ctxColor(fiveHour.percentUsed) }),
+                Text({ children: [fiveHourBar.filled], color: ctxColor(fiveHour.percentUsed) }),
+                Text({ children: [fiveHourBar.empty] }),
+                fiveHourResetIn
+                  ? Box({
+                      key: 'readout-ratelimit',
+                      flexDirection: 'row',
+                      children: [
+                        Text({ children: [' ('], dimColor: true }),
+                        pressable('ratelimit', 'resets ' + fiveHourResetIn, 'usage', true),
+                        Text({ children: [')'], dimColor: true }),
+                      ],
+                    })
+                  : null,
+              ].filter(Boolean),
+            })
+          : null,
       ],
     })
 
