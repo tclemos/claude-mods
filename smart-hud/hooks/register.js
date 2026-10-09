@@ -183,22 +183,29 @@ export function register(on) {
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     const { Box, Text, Button } = $.ui.resolve(e)
 
-    // Button is the only element that takes a press, and it carries no color of
-    // its own at rest: `color` on it is ignored, `variant` only offers the one
-    // accent with brackets around it, and a label refuses the control
-    // characters an ANSI colour would need. Underline on hover is the whole
-    // affordance available, so these read in the default colour at rest.
-    const action = (key, label, command) =>
+    // Button is the only element that takes a press and it carries no colour of
+    // its own; Text is the only one that does. So a readout keeps its colour by
+    // splitting: the icon is the control, the value stays Text beside it.
+    const pressable = (key, label, command) =>
       Button({
         key,
         label,
         plain: true,
-        hover: { scope: 'smart-hud-' + key, underline: true },
+        // `hover` binds to the nearest enclosing keyed Box, so the control
+        // underlines whenever the pointer is anywhere over its row.
+        hover: { underline: true },
         onPress: () => {
           $.command.run({ command }).catch(() => $.ui.toast('/' + command + ' could not run'))
         },
       })
 
+    // The keyed Box is what `hover` above reacts to; without a key it is refused.
+    const readout = (key, icon, value, command, color) =>
+      Box({
+        key: 'readout-' + key,
+        flexDirection: 'row',
+        children: [pressable(key, icon, command), Text({ children: [' ' + value], color })],
+      })
 
     const cwd = (await $.session.cwd()) ?? ''
     const home = await $.env.get('HOME')
@@ -224,11 +231,12 @@ export function register(on) {
     // content doesn't jump when the first one happens.
     const activityRow = (label, state, commandKey) =>
       Box({
+        key: 'readout-' + commandKey,
         flexDirection: 'row',
         flexWrap: 'wrap',
         columnGap: 1,
         children: [
-          action(commandKey, label, commandKey),
+          pressable(commandKey, label, commandKey),
           ...(state.size > 0
             ? buildChips(Text, state, promptIndex)
             : [Text({ children: ['None'], color: 'inactive', dimColor: true })]),
@@ -251,11 +259,11 @@ export function register(on) {
         Box({
           flexDirection: 'row',
           children: [
-            action('model', '🧠 ' + model, 'model'),
+            readout('model', '🧠', model, 'model', 'claude'),
             effort ? Text({ children: [' · '], color: 'inactive' }) : null,
-            effort ? action('effort', effort, 'effort') : null,
+            effort ? readout('effort', '⚡', effort, 'effort', 'text') : null,
             Text({ children: [' · '], color: 'inactive' }),
-            action('cost', '💰 $' + (cost ?? 0).toFixed(2), 'usage'),
+            readout('cost', '💰', '$' + (cost ?? 0).toFixed(2), 'usage', 'warning'),
           ].filter(Boolean),
         }),
         Box({
