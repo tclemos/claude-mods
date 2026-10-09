@@ -271,6 +271,16 @@ export function register(on) {
     const fiveHourBar = fiveHour ? progressBar(fiveHour.percentUsed, CTX_BAR_WIDTH) : null
     const fiveHourResetIn = fiveHour ? formatResetIn(fiveHour.resetsAt, await $.clock.now()) : null
 
+    // Context and Usage read as a two-row, three-column table (label, bar,
+    // trailing figure); the first two columns are already fixed-width, so pad
+    // the third to the longer of the two and the pair ends on the same edge
+    // instead of leaving a gap after whichever row is shorter.
+    const contextTrailing = usage.context.window
+      ? formatTokens(usage.context.tokens ?? 0) + '/' + formatTokens(usage.context.window)
+      : null
+    const usageTrailing = fiveHourResetIn ? 'resets ' + fiveHourResetIn : null
+    const trailingWidth = Math.max(contextTrailing?.length ?? 0, usageTrailing?.length ?? 0)
+
     // Each activity row (MCPs, Skills) is always present, even with nothing
     // called yet, so the band's height never changes and the rest of the
     // content doesn't jump when the first one happens.
@@ -329,12 +339,7 @@ export function register(on) {
                   flexDirection: 'row',
                   children: [
                     Text({ children: [' ('], dimColor: true }),
-                    pressable(
-                      'context',
-                      formatTokens(usage.context.tokens ?? 0) + '/' + formatTokens(usage.context.window),
-                      'context',
-                      true
-                    ),
+                    pressable('context', contextTrailing.padStart(trailingWidth), 'context', true),
                     Text({ children: [')'], dimColor: true }),
                   ],
                 })
@@ -358,7 +363,7 @@ export function register(on) {
                       flexDirection: 'row',
                       children: [
                         Text({ children: [' ('], dimColor: true }),
-                        pressable('ratelimit', 'resets ' + fiveHourResetIn, 'usage', true),
+                        pressable('ratelimit', usageTrailing.padStart(trailingWidth), 'usage', true),
                         Text({ children: [')'], dimColor: true }),
                       ],
                     })
