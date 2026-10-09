@@ -303,6 +303,9 @@ export function register(on) {
       children: [
         Box({
           flexDirection: 'row',
+          // Context/Usage anchor left so both bars start at the same column;
+          // this row alone overrides back to the column's own right edge.
+          alignSelf: 'flex-end',
           children: [
             readout('model', '🧠', truncateEnd(model, MODEL_LABEL_MAX), 'model', 'claude'),
             effort ? Text({ children: [' · '], color: 'inactive' }) : null,
