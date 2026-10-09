@@ -29,24 +29,16 @@ function activityKey(e) {
   return null
 }
 
-// The status icon is the chip's control, so the name beside it can keep the
-// colour that carries the status — a Button has none of its own.
-function buildChips(Box, Text, pressable, state, prompt, command) {
+function buildChips(Text, state, prompt) {
   const entries = [...state.entries()].sort((a, b) => a[0].localeCompare(b[0]))
   return entries.flatMap(([name, s], i) => {
     const { icon, color } = s.promptIndex === prompt ? ACTIVITY_STATUS[s.status] : ACTIVITY_STATUS.idle
-    const chip = Box({
-      key: 'chip-' + name,
-      flexDirection: 'row',
-      children: [
-        pressable('chip-' + command + '-' + name, icon, command, name),
-        Text({
-          children: [' ' + name],
-          color,
-          bold: color === 'success',
-          dimColor: color === 'inactive',
-        }),
-      ],
+    const chip = Text({
+      key: name,
+      children: [icon + ' ' + name],
+      color,
+      bold: color === 'success',
+      dimColor: color === 'inactive',
     })
     return i === 0 ? [chip] : [Text({ key: name + '-sep', children: [', '], color: 'inactive' }), chip]
   })
@@ -194,7 +186,7 @@ export function register(on) {
     // Button is the only element that takes a press and it carries no colour of
     // its own; Text is the only one that does. So a readout keeps its colour by
     // splitting: the icon is the control, the value stays Text beside it.
-    const pressable = (key, label, command, args, dim) =>
+    const pressable = (key, label, command, dim) =>
       Button({
         key,
         label,
@@ -208,7 +200,7 @@ export function register(on) {
         // docs call unconditional but the surface does honour.
         hover: { underline: true, inverse: false },
         onPress: () => {
-          $.command.run({ command, args }).catch(() => $.ui.toast('/' + command + ' could not run'))
+          $.command.run({ command }).catch(() => $.ui.toast('/' + command + ' could not run'))
         },
       })
 
@@ -251,7 +243,7 @@ export function register(on) {
         children: [
           pressable(commandKey, label, commandKey),
           ...(state.size > 0
-            ? buildChips(Box, Text, pressable, state, promptIndex, commandKey)
+            ? buildChips(Text, state, promptIndex)
             : [Text({ children: ['None'], color: 'inactive', dimColor: true })]),
         ],
       })
@@ -297,7 +289,6 @@ export function register(on) {
                       'context',
                       formatTokens(usage.context.tokens ?? 0) + '/' + formatTokens(usage.context.window),
                       'context',
-                      undefined,
                       true
                     ),
                     Text({ children: [')'], dimColor: true }),
