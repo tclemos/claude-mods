@@ -284,6 +284,49 @@ export function register(on) {
       ],
     })
 
+    // TEMP PREVIEW: effort icon candidates, drawn in the real readout shape so
+    // the cell width shows. The first group is unambiguously wide, like the
+    // brain and the money bag; the second is narrow, one cell. Remove once
+    // chosen.
+    const EFFORT_ICONS = [
+      ['🔥', 'largo'],
+      ['🚀', 'largo'],
+      ['🎯', 'largo'],
+      ['💪', 'largo'],
+      ['🧪', 'largo'],
+      ['📊', 'largo'],
+      ['🔋', 'largo'],
+      ['🧮', 'largo'],
+      ['🎚', 'largo'],
+      ['🎛', 'largo'],
+      ['⏱', 'largo'],
+      ['🌡', 'largo'],
+      ['🏋', 'largo'],
+      ['🧠', 'largo'],
+      ['⚡', 'ambiguo (atual)'],
+      ['⚙', 'ambiguo'],
+      ['▲', 'estreito'],
+      ['◆', 'estreito'],
+      ['✦', 'estreito'],
+      ['❯', 'estreito'],
+    ]
+
+    const iconPreview = Box({
+      flexDirection: 'column',
+      children: EFFORT_ICONS.map(([icon, note], i) =>
+        Box({
+          key: 'ei-' + i,
+          flexDirection: 'row',
+          children: [
+            Text({ children: [String(i + 1).padStart(2, ' ') + '. '], color: 'inactive' }),
+            Text({ children: [icon] }),
+            Text({ children: [' ' + (effort ?? 'high')], color: 'text' }),
+            Text({ children: ['   ' + note], color: 'inactive', dimColor: true }),
+          ],
+        })
+      ),
+    })
+
     return Box({
       flexDirection: 'column',
       width: e.props.bodyColumns,
@@ -304,6 +347,7 @@ export function register(on) {
           columnGap: 3,
           children: [leftColumn, rightColumn],
         }),
+        iconPreview,
       ],
     })
   })
