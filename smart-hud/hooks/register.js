@@ -50,6 +50,20 @@ function formatTokens(n) {
   return String(n)
 }
 
+// A Box auto-sizes to its content unless given a hard width, so an unbounded
+// label (a long branch name, a custom model alias) grows the frame itself
+// instead of wrapping. Cut it ourselves rather than lean on Text's `wrap`,
+// which would need a width-constrained Box and gives no good answer for two
+// differently-coloured Text siblings sharing one truncated line.
+function truncateEnd(s, max) {
+  if (s.length <= max) return s
+  return s.slice(0, max - 1) + '…'
+}
+
+// A custom model alias has no length limit on the API side, so cap it
+// unconditionally rather than only when it happens to overflow.
+const MODEL_LABEL_MAX = 28
+
 // `resetsAt` is an ISO timestamp; rateLimits is absent off a subscription
 // (a pay-as-you-go or gateway account may never report one), so this reads
 // null in that case rather than a wrong duration.
@@ -290,7 +304,7 @@ export function register(on) {
         Box({
           flexDirection: 'row',
           children: [
-            readout('model', '🧠', model, 'model', 'claude'),
+            readout('model', '🧠', truncateEnd(model, MODEL_LABEL_MAX), 'model', 'claude'),
             effort ? Text({ children: [' · '], color: 'inactive' }) : null,
             effort ? readout('effort', '💪', effort, 'effort', 'text') : null,
             Text({ children: [' · '], color: 'inactive' }),
@@ -359,14 +373,26 @@ export function register(on) {
       borderColor: 'promptBorder',
       paddingX: 1,
       children: [
-        Box({
-          flexDirection: 'row',
-          justifyContent: 'center',
-          children: [
-            Text({ children: ['📁 ' + dir], color: 'text' }),
-            branch ? Text({ children: [':' + branch], color: 'suggestion' }) : null,
-          ].filter(Boolean),
-        }),
+        (() => {
+          // The row has no hard width of its own — it grows to fit its
+          // content rather than wrapping — so an unbounded path or branch
+          // name would stretch the frame itself. Cut the combined label to
+          // what the frame can hold (border + padding take 4 columns) before
+          // it ever reaches layout.
+          const full = '📁 ' + dir + (branch ? ':' + branch : '')
+          const available = e.props.bodyColumns - 4
+          const overflows = full.length > available
+          return Box({
+            flexDirection: 'row',
+            justifyContent: 'center',
+            children: overflows
+              ? [Text({ children: [truncateEnd(full, available)], color: 'text' })]
+              : [
+                  Text({ children: ['📁 ' + dir], color: 'text' }),
+                  branch ? Text({ children: [':' + branch], color: 'suggestion' }) : null,
+                ].filter(Boolean),
+          })
+        })(),
         Box({
           flexDirection: 'row',
           columnGap: 3,
