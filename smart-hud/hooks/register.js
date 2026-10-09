@@ -150,7 +150,25 @@ export function register(on) {
   // for the length of an idle turn. A hot reload cancels this automatically,
   // so a later reload never stacks a second tick alongside it.
   on('session.start', async ($, e, next) => {
-    $.clock.every(60_000, () => $.ui.invalidate('ui.render'))
+    $.clock.every(60_000, async () => {
+      // TEMP DEBUG: confirm the tick fires and the countdown actually moves
+      // during a session blocked by a rate limit. Remove once diagnosed.
+      try {
+        const usage = await $.session.usage()
+        const fiveHour = usage.rateLimits?.find((r) => r.kind === 'five_hour')
+        $.ui.log(
+          '[smart-hud debug] tick at ' +
+            new Date(await $.clock.now()).toISOString() +
+            ' resetsAt=' +
+            (fiveHour?.resetsAt ?? 'none') +
+            ' resetIn=' +
+            (fiveHour ? formatResetIn(fiveHour.resetsAt, await $.clock.now()) : 'n/a'),
+        )
+      } catch (err) {
+        $.ui.log('[smart-hud debug] tick failed: ' + String(err))
+      }
+      $.ui.invalidate('ui.render')
+    })
     return next(e)
   })
 
