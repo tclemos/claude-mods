@@ -192,8 +192,9 @@ export function register(on) {
         label,
         plain: true,
         // `hover` binds to the nearest enclosing keyed Box, so the control
-        // underlines whenever the pointer is anywhere over its row.
-        hover: { underline: true },
+        // underlines whenever the pointer is anywhere over its row. `inverse`
+        // is set against the invert the pointer applies to a Button by itself.
+        hover: { underline: true, inverse: false },
         onPress: () => {
           $.command.run({ command }).catch(() => $.ui.toast('/' + command + ' could not run'))
         },
