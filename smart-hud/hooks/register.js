@@ -194,11 +194,14 @@ export function register(on) {
     // Button is the only element that takes a press and it carries no colour of
     // its own; Text is the only one that does. So a readout keeps its colour by
     // splitting: the icon is the control, the value stays Text beside it.
-    const pressable = (key, label, command, args) =>
+    const pressable = (key, label, command, args, dim) =>
       Button({
         key,
         label,
         plain: true,
+        // Dim at rest, full strength under the pointer: the closest a Button
+        // gets to `subtle`, and an affordance of its own.
+        ...(dim ? { dimColor: true } : {}),
         // `hover` binds to the nearest enclosing keyed Box, so the control
         // underlines whenever the pointer is anywhere over its row. `inverse:
         // false` cancels the background the pointer otherwise paints, which the
@@ -280,15 +283,17 @@ export function register(on) {
           key: 'readout-context',
           flexDirection: 'row',
           children: [
-            pressable('context', '📊', 'context'),
-            Text({ children: [' ' + percent + '% '], color: barColor }),
+            Text({ children: [percent + '% '], color: barColor }),
             Text({ children: [bar.filled], color: barColor }),
             Text({ children: [bar.empty] }),
             usage.context.window
-              ? Text({
-                  children: [' (' + formatTokens(usage.context.tokens ?? 0) + '/' + formatTokens(usage.context.window) + ')'],
-                  color: 'subtle',
-                })
+              ? pressable(
+                  'context',
+                  ' (' + formatTokens(usage.context.tokens ?? 0) + '/' + formatTokens(usage.context.window) + ')',
+                  'context',
+                  undefined,
+                  true
+                )
               : null,
           ].filter(Boolean),
         }),
