@@ -183,15 +183,15 @@ export function register(on) {
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     const { Box, Text, Button } = $.ui.resolve(e)
 
-    // Button is the only element that takes a press, and it carries no resting
-    // color — only dimColor and a hover override — so a clickable value trades
-    // its accent for an underline (plus the pointer's own invert) on hover.
-    const action = (key, label, command, hover) =>
+    // Button is the only element that takes a press and it has no resting color
+    // of its own: `plain` draws the bare label with none, and `variant` is the
+    // only way to get one — the accent, and only with its `[ ]` around it.
+    const action = (key, label, command, variant) =>
       Button({
         key,
         label,
-        plain: true,
-        hover: { scope: 'smart-hud-' + key, underline: true, ...hover },
+        ...(variant ? { variant } : { plain: true }),
+        hover: { scope: 'smart-hud-' + key, underline: true },
         onPress: () => {
           $.command.run({ command }).catch(() => $.ui.toast('/' + command + ' could not run'))
         },
@@ -248,11 +248,9 @@ export function register(on) {
         Box({
           flexDirection: 'row',
           children: [
-            action('model', '🧠 ' + model, 'model', { color: 'claude' }),
-            effort ? Text({ children: [' · '], color: 'inactive' }) : null,
-            effort ? action('effort', effort, 'effort') : null,
-            Text({ children: [' · '], color: 'inactive' }),
-            action('cost', '💰 $' + (cost ?? 0).toFixed(2), 'usage', { color: 'warning' }),
+            action('model', '🧠 ' + model, 'model', 'primary'),
+            effort ? action('effort', effort, 'effort', 'primary') : null,
+            action('cost', '💰 $' + (cost ?? 0).toFixed(2), 'usage', 'primary'),
           ].filter(Boolean),
         }),
         Box({
