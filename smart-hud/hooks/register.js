@@ -145,6 +145,15 @@ async function refreshAfterPick($, e, next) {
 }
 
 export function register(on) {
+  // Nothing else redraws the band on a plain clock tick: the reset countdown
+  // and the branch (another terminal's checkout) would otherwise go stale
+  // for the length of an idle turn. A hot reload cancels this automatically,
+  // so a later reload never stacks a second tick alongside it.
+  on('session.start', async ($, e, next) => {
+    $.clock.every(60_000, () => $.ui.invalidate('ui.render'))
+    return next(e)
+  })
+
   on('command.run', { command: 'model' }, refreshAfterPick)
   on('command.run', { command: 'effort' }, refreshAfterPick)
 
